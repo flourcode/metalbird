@@ -348,17 +348,6 @@
             z-index: 60;
             text-shadow: 0 0 20px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.9);
             letter-spacing: 2px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .heading-cardinal {
-            font-size: clamp(14px, 2.5vw, 20px);
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.6);
-            letter-spacing: 2px;
         }
 
         /* Corner Telemetry */
@@ -541,10 +530,7 @@
             </div>
 
             <!-- Heading at Top Center -->
-            <div class="hud-heading">
-                <div id="dispHdg">000°</div>
-                <div class="heading-cardinal" id="dispCardinal">N</div>
-            </div>
+            <div class="hud-heading" id="dispHdg">000°</div>
 
             <!-- Top Center - Callsign and Type -->
             <div class="hud-top">
@@ -642,7 +628,6 @@
             dispAlt: document.getElementById('dispAlt'),
             dispSpd: document.getElementById('dispSpd'),
             dispHdg: document.getElementById('dispHdg'),
-            dispCardinal: document.getElementById('dispCardinal'),
             dispStatus: document.getElementById('dispStatus'),
             ahrsHorizon: document.getElementById('ahrs-horizon')
         };
@@ -783,7 +768,6 @@ const AIRCRAFT_TYPES = {
     "T38":  "Northrop T-38 Talon",
     "TEX2": "Beechcraft T-6 Texan II"
 };
-
 
         // Fallback airport database
         const AIRPORT_DB = {
@@ -1022,14 +1006,12 @@ const AIRCRAFT_TYPES = {
                 ? Math.round(spd) + ' KTS' 
                 : '---';
 
-            // Heading - show as degrees with cardinal direction
+            // Heading - show as degrees
             const hdg = plane.track;
             if (typeof hdg === 'number') {
                 dom.dispHdg.textContent = Math.round(hdg).toString().padStart(3, '0') + '°';
-                dom.dispCardinal.textContent = getCardinalDirection(hdg);
             } else {
                 dom.dispHdg.textContent = '---°';
-                dom.dispCardinal.textContent = '--';
             }
 
             // Flight Status based on vertical rate and altitude
