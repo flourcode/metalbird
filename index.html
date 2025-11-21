@@ -12,7 +12,7 @@
     <meta name="theme-color" content="#0a0a0a">
     
     <meta name="description" content="Real-time aircraft tracker with route data - Premium version">
-    <title>GIANT METAL BIRD DETECTOR v1.1 PRO</title>
+    <title>GIANT METAL BIRD DETECTOR v1.2 PRO</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,11 +26,9 @@
             --text-muted: #888888;
             --accent-yellow: #FFD700; 
             --accent-blue: #4da6ff;
-            --accent-red: #ff3333;
+            /* FRIENDLY GREEN LOCK COLOR */
+            --accent-lock: #39ff14; 
             --border-color: #333333;
-            --status-good: #4a9c6d;
-            --status-search: #ffaa00;
-            --status-offline: #ff4444;
             --header-height: 70px;
         }
 
@@ -117,41 +115,62 @@
         .ahrs-crosshair {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 200px; height: 80px; z-index: 100; pointer-events: none;
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy transition */
         }
         
         /* Default White Crosshair */
         .ahrs-crosshair svg path, 
         .ahrs-crosshair svg circle, 
         .ahrs-crosshair svg line {
-            stroke: rgba(255,255,255,0.9);
-            fill: rgba(255,255,255,0.9);
-            transition: stroke 0.2s, fill 0.2s;
+            stroke: rgba(255,255,255,0.8);
+            fill: rgba(255,255,255,0.8);
+            stroke-width: 2;
+            transition: stroke 0.3s, fill 0.3s, stroke-width 0.3s;
         }
 
-        /* LOCKED STATE (Red) */
+        /* LOCKED STATE (Green & Larger) */
+        .ahrs-crosshair.locked {
+            transform: translate(-50%, -50%) scale(1.15); /* 15% larger */
+        }
+
         .ahrs-crosshair.locked svg path, 
         .ahrs-crosshair.locked svg circle, 
         .ahrs-crosshair.locked svg line {
-            stroke: var(--accent-red);
-            fill: var(--accent-red);
-            filter: drop-shadow(0 0 8px var(--accent-red));
+            stroke: var(--accent-lock);
+            fill: var(--accent-lock);
+            stroke-width: 4; /* Thicker lines */
+            filter: drop-shadow(0 0 10px var(--accent-lock));
         }
 
         .lock-status {
-            position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%);
-            color: var(--accent-red); font-family: 'Space Mono', monospace;
-            font-weight: 700; font-size: 14px; letter-spacing: 2px;
-            text-shadow: 0 0 10px rgba(255, 0, 0, 0.6);
-            opacity: 0; transition: opacity 0.2s; z-index: 101;
-            border: 1px solid var(--accent-red); padding: 4px 8px; background: rgba(0,0,0,0.7);
+            position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%);
+            color: var(--accent-lock); font-family: 'Space Mono', monospace;
+            font-weight: 700; font-size: 18px; letter-spacing: 3px;
+            text-shadow: 0 0 15px var(--accent-lock);
+            opacity: 0; transition: opacity 0.2s, transform 0.2s; z-index: 101;
+            border: 2px solid var(--accent-lock); 
+            padding: 8px 16px; 
+            background: rgba(0, 20, 0, 0.8);
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
         }
-        .lock-status.visible { opacity: 1; }
+        
+        .lock-status.visible { 
+            opacity: 1; 
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(57, 255, 20, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(57, 255, 20, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(57, 255, 20, 0); }
+        }
 
         .bearing-indicator {
-            position: fixed; top: 53%; left: 50%; transform: translateX(-50%);
-            font-family: 'Space Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.5);
+            position: fixed; top: 55%; left: 50%; transform: translateX(-50%);
+            font-family: 'Space Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.5);
             z-index: 101; text-align: center; pointer-events: none;
+            background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px;
         }
 
         /* HUD Elements */
@@ -177,7 +196,7 @@
 
         /* Route Display */
         .hud-route {
-            position: fixed; top: 58%; left: 50%; transform: translateX(-50%);
+            position: fixed; top: 60%; left: 50%; transform: translateX(-50%);
             display: flex; align-items: center; gap: clamp(16px, 3vw, 32px);
             z-index: 50; pointer-events: none;
         }
@@ -269,7 +288,7 @@
                 </div>
             </div>
 
-            <div class="lock-status" id="lockStatus">TARGET LOCKED</div>
+            <div class="lock-status" id="lockStatus">VISUAL MATCH</div>
 
             <div class="ahrs-crosshair" id="crosshair">
                 <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
