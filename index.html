@@ -70,6 +70,7 @@
         .ctrl-element:active { transform: scale(0.98); }
         .loc-btn.active { background: var(--border-color); color: var(--accent-green); }
         .sound-btn.active { background: var(--border-color); color: var(--accent-yellow); }
+        .voice-btn.active { background: var(--border-color); color: var(--accent-yellow); }
 
         .radius-select {
             appearance: none; -webkit-appearance: none; text-align: center; outline: none;
@@ -237,6 +238,27 @@
             50% { opacity: 1; }
         }
 
+        /* Footer credit */
+        .footer-credit {
+            position: fixed; 
+            bottom: 8px; 
+            right: 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.25);
+            z-index: 49;
+            letter-spacing: 0.5px;
+            pointer-events: auto;
+        }
+        .footer-credit a {
+            color: rgba(255, 255, 255, 0.25);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        .footer-credit a:hover {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
         @media (max-width: 768px) {
             .hud-top { top: clamp(90px, 15vh, 140px); }
         }
@@ -256,6 +278,7 @@
         <div class="header-controls">
             <button class="ctrl-element loc-btn" id="locToggle">GEO</button>
             <button class="ctrl-element sound-btn" id="soundToggle">SOUND</button>
+            <button class="ctrl-element voice-btn" id="voiceToggle">VOICE</button>
             <select class="ctrl-element radius-select" id="radiusSelect">
                 <option value="3" selected>3 MI</option>
                 <option value="5">5 MI</option>
@@ -324,6 +347,10 @@
         </div>
     </main>
 
+    <div class="footer-credit">
+        Made by <a href="mailto:your.email@example.com" target="_blank">Mark</a>
+    </div>
+
     <script>
         // Configuration
         const CONFIG = {
@@ -336,145 +363,212 @@
             PITCH_MULTIPLIER: 4,
             HORIZON_SMOOTHING: 0.4,
             EMERGENCY_SQUAWKS: ['7500', '7600', '7700'],
-            SOUND_ENABLED_DEFAULT: false
+            SOUND_ENABLED_DEFAULT: false,
+            VOICE_ENABLED_DEFAULT: false,
+            VOICE_RATE: 1.1,              // Slightly faster like ATC
+            VOICE_PITCH: 0.9,             // Slightly lower pitch
+            VOICE_COOLDOWN: 20000         // 20 seconds between callouts
         };
 
-                        // Aircraft Type Mapping (ICAO to common name)
-const AIRCRAFT_TYPES = {
-    // --- Airbus Commercial ---
-    "A20N": "Airbus A320neo",
-    "A21N": "Airbus A321neo",
-    "A319": "Airbus A319",
-    "A320": "Airbus A320",
-    "A321": "Airbus A321",
-    "A332": "Airbus A330-200",
-    "A333": "Airbus A330-300",
-    "A339": "Airbus A330-900neo",
-    "A343": "Airbus A340-300",
-    "A346": "Airbus A340-600",
-    "A359": "Airbus A350-900",
-    "A35K": "Airbus A350-1000",
-    "A388": "Airbus A380",
-    "A306": "Airbus A300-600",
-    "A3ST": "Airbus Beluga",
-    "BCS1": "Airbus A220-100",
-    "BCS3": "Airbus A220-300",
+        // Enhanced Aircraft Type Mapping (ICAO to common name)
+        const AIRCRAFT_TYPES = {
+            // === AIRBUS COMMERCIAL ===
+            "A20N": "Airbus A320neo", "A19N": "Airbus A319neo", "A21N": "Airbus A321neo",
+            "A318": "Airbus A318", "A319": "Airbus A319", "A320": "Airbus A320", "A321": "Airbus A321",
+            "A124": "Antonov An-124", "A225": "Antonov An-225",
+            "A306": "Airbus A300-600", "A30B": "Airbus A300", "A310": "Airbus A310",
+            "A332": "Airbus A330-200", "A333": "Airbus A330-300", "A338": "Airbus A330-800neo", "A339": "Airbus A330-900neo",
+            "A342": "Airbus A340-200", "A343": "Airbus A340-300", "A345": "Airbus A340-500", "A346": "Airbus A340-600",
+            "A359": "Airbus A350-900", "A35K": "Airbus A350-1000",
+            "A388": "Airbus A380",
+            "A3ST": "Airbus Beluga", "ABY": "Airbus Beluga XL",
+            
+            // === AIRBUS A220 (Bombardier C Series) ===
+            "BCS1": "Airbus A220-100", "BCS3": "Airbus A220-300",
+            "CS10": "Bombardier CSeries CS100", "CS30": "Bombardier CSeries CS300",
 
-    // --- Boeing Commercial ---
-    "B38M": "Boeing 737 MAX 8",
-    "B39M": "Boeing 737 MAX 9",
-    "B3XM": "Boeing 737 MAX 10",
-    "B712": "Boeing 717-200",
-    "B737": "Boeing 737-700",
-    "B738": "Boeing 737-800",
-    "B739": "Boeing 737-900",
-    "B733": "Boeing 737-300", // Classic
-    "B734": "Boeing 737-400", // Classic/Cargo
-    "B744": "Boeing 747-400",
-    "B748": "Boeing 747-8",
-    "B752": "Boeing 757-200",
-    "B753": "Boeing 757-300",
-    "B762": "Boeing 767-200",
-    "B763": "Boeing 767-300",
-    "B764": "Boeing 767-400",
-    "B772": "Boeing 777-200",
-    "B773": "Boeing 777-300",
-    "B77L": "Boeing 777-200LR",
-    "B77W": "Boeing 777-300ER",
-    "B788": "Boeing 787-8",
-    "B789": "Boeing 787-9",
-    "B78X": "Boeing 787-10",
+            // === BOEING COMMERCIAL ===
+            "B703": "Boeing 720", "B707": "Boeing 707", "B720": "Boeing 720",
+            "B721": "Boeing 727-100", "B722": "Boeing 727-200", "B727": "Boeing 727",
+            "B732": "Boeing 737-200", "B733": "Boeing 737-300", "B734": "Boeing 737-400",
+            "B735": "Boeing 737-500", "B736": "Boeing 737-600", "B737": "Boeing 737-700",
+            "B738": "Boeing 737-800", "B739": "Boeing 737-900", "B73G": "Boeing 737-700",
+            "B37M": "Boeing 737 MAX 7", "B38M": "Boeing 737 MAX 8", "B39M": "Boeing 737 MAX 9", "B3XM": "Boeing 737 MAX 10",
+            "B712": "Boeing 717",
+            "B741": "Boeing 747-100", "B742": "Boeing 747-200", "B743": "Boeing 747-300",
+            "B744": "Boeing 747-400", "B748": "Boeing 747-8", "B74D": "Boeing 747-400D", "B74S": "Boeing 747SP",
+            "B752": "Boeing 757-200", "B753": "Boeing 757-300",
+            "B762": "Boeing 767-200", "B763": "Boeing 767-300", "B764": "Boeing 767-400",
+            "B772": "Boeing 777-200", "B773": "Boeing 777-300", "B77L": "Boeing 777-200LR",
+            "B77W": "Boeing 777-300ER", "B778": "Boeing 777-8", "B779": "Boeing 777-9",
+            "B788": "Boeing 787-8", "B789": "Boeing 787-9", "B78X": "Boeing 787-10",
 
-    // --- Regional / Turboprops ---
-    "E135": "Embraer ERJ-135",
-    "E145": "Embraer ERJ-145",
-    "E170": "Embraer E170",
-    "E75L": "Embraer E175 (Long Wing)",
-    "E75S": "Embraer E175 (Short Wing)",
-    "E190": "Embraer E190",
-    "E195": "Embraer E195",
-    "E290": "Embraer E190-E2",
-    "E295": "Embraer E195-E2",
-    "CRJ1": "Bombardier CRJ-100",
-    "CRJ2": "Bombardier CRJ-200",
-    "CRJ7": "Bombardier CRJ-700",
-    "CRJ9": "Bombardier CRJ-900",
-    "CRJX": "Bombardier CRJ-1000",
-    "DH8D": "De Havilland Dash 8 Q400",
-    "AT75": "ATR 72-500",
-    "AT76": "ATR 72-600",
-    "AT45": "ATR 42-500",
+            // === MCDONNELL DOUGLAS ===
+            "DC10": "McDonnell Douglas DC-10", "MD11": "McDonnell Douglas MD-11",
+            "DC86": "Douglas DC-8", "DC87": "Douglas DC-8", "DC93": "Douglas DC-9",
+            "MD81": "McDonnell Douglas MD-81", "MD82": "McDonnell Douglas MD-82", "MD83": "McDonnell Douglas MD-83",
+            "MD87": "McDonnell Douglas MD-87", "MD88": "McDonnell Douglas MD-88", "MD90": "McDonnell Douglas MD-90",
 
-    // --- General Aviation (Piston/Prop) ---
-    "C152": "Cessna 152",
-    "C172": "Cessna 172 Skyhawk",
-    "C182": "Cessna 182 Skylane",
-    "C208": "Cessna 208 Caravan",
-    "P28A": "Piper PA-28 Cherokee/Archer",
-    "PA34": "Piper PA-34 Seneca",
-    "PA44": "Piper PA-44 Seminole",
-    "SR20": "Cirrus SR20",
-    "SR22": "Cirrus SR22",
-    "SF50": "Cirrus Vision Jet",
-    "BE36": "Beechcraft Bonanza",
-    "BE58": "Beechcraft Baron",
-    "DA40": "Diamond DA40 Star",
-    "DA42": "Diamond DA42 Twin Star",
+            // === EMBRAER REGIONAL ===
+            "E120": "Embraer EMB 120 Brasilia", "E121": "Embraer Xingu",
+            "E135": "Embraer ERJ-135", "E145": "Embraer ERJ-145", "E35L": "Embraer Legacy 450",
+            "E170": "Embraer E170", "E75L": "Embraer E175", "E75S": "Embraer E175",
+            "E190": "Embraer E190", "E195": "Embraer E195",
+            "E290": "Embraer E190-E2", "E295": "Embraer E195-E2",
+            "E50P": "Embraer Phenom 100", "E55P": "Embraer Phenom 300", "E550": "Embraer Legacy 500",
 
-    // --- Business Jets / Turboprops ---
-    "PC12": "Pilatus PC-12",
-    "PC24": "Pilatus PC-24",
-    "BE20": "Beechcraft King Air 200",
-    "B350": "Beechcraft King Air 350",
-    "TBM9": "Daher TBM 900/910/930/940",
-    "C510": "Cessna Citation Mustang",
-    "C525": "Cessna Citation Jet (CJ1/2/3/4)",
-    "C56X": "Cessna Citation Excel/XLS",
-    "C680": "Cessna Citation Sovereign",
-    "C750": "Cessna Citation X",
-    "GLF4": "Gulfstream IV",
-    "GLF5": "Gulfstream V / G550",
-    "GLF6": "Gulfstream G650/G600",
-    "GLEX": "Bombardier Global Express",
-    "CL30": "Bombardier Challenger 300/350",
-    "CL60": "Bombardier Challenger 600/604/605",
-    "FA7X": "Dassault Falcon 7X",
-    "LJ35": "Learjet 35",
-    "LJ45": "Learjet 45",
-    "LJ60": "Learjet 60",
-    "HDZB": "HondaJet",
-    "E55P": "Embraer Phenom 300",
-    "E50P": "Embraer Phenom 100",
+            // === BOMBARDIER REGIONAL ===
+            "CRJ1": "Bombardier CRJ-100", "CRJ2": "Bombardier CRJ-200", "CRJ7": "Bombardier CRJ-700",
+            "CRJ9": "Bombardier CRJ-900", "CRJX": "Bombardier CRJ-1000",
+            "DH8A": "Bombardier Dash 8-100", "DH8B": "Bombardier Dash 8-200", "DH8C": "Bombardier Dash 8-300", "DH8D": "Bombardier Dash 8-400",
+            "DHC6": "De Havilland Twin Otter", "DHC7": "De Havilland Dash 7", "DHC8": "Bombardier Dash 8",
 
-    // --- Helicopters ---
-    "R22":  "Robinson R22",
-    "R44":  "Robinson R44",
-    "R66":  "Robinson R66",
-    "B06":  "Bell 206 JetRanger",
-    "B407": "Bell 407",
-    "B429": "Bell 429 GlobalRanger",
-    "AS50": "Airbus H125 / AS350 Écureuil",
-    "EC35": "Airbus H135 / EC135",
-    "EC45": "Airbus H145 / EC145",
-    "AW39": "Leonardo AW139",
-    "S76":  "Sikorsky S-76",
-    "H60":  "Sikorsky UH-60 Black Hawk",
+            // === ATR TURBOPROPS ===
+            "AT43": "ATR 42-300", "AT45": "ATR 42-500", "AT46": "ATR 42-600",
+            "AT72": "ATR 72", "AT73": "ATR 72", "AT75": "ATR 72-500", "AT76": "ATR 72-600",
 
-    // --- Military (Commonly tracked) ---
-    "C130": "Lockheed C-130 Hercules",
-    "C30J": "Lockheed Martin C-130J Super Hercules",
-    "C17":  "Boeing C-17 Globemaster III",
-    "K35R": "Boeing KC-135 Stratotanker",
-    "P8":   "Boeing P-8 Poseidon",
-    "V22":  "Bell Boeing V-22 Osprey",
-    "F16":  "General Dynamics F-16 Fighting Falcon",
-    "F18":  "McDonnell Douglas F/A-18 Hornet",
-    "F22":  "Lockheed Martin F-22 Raptor",
-    "F35":  "Lockheed Martin F-35 Lightning II",
-    "EUFI": "Eurofighter Typhoon",
-    "T38":  "Northrop T-38 Talon",
-    "TEX2": "Beechcraft T-6 Texan II"
-};
+            // === SAAB ===
+            "S340": "Saab 340", "SF34": "Saab 340", "S2000": "Saab 2000",
+
+            // === CESSNA (General Aviation) ===
+            "C150": "Cessna 150", "C152": "Cessna 152", "C162": "Cessna Skycatcher",
+            "C170": "Cessna 170", "C172": "Cessna 172 Skyhawk", "C175": "Cessna 175 Skylark",
+            "C177": "Cessna 177 Cardinal", "C180": "Cessna 180", "C182": "Cessna 182 Skylane",
+            "C185": "Cessna 185 Skywagon", "C206": "Cessna 206 Stationair", "C207": "Cessna 207 Skywagon",
+            "C208": "Cessna 208 Caravan", "C210": "Cessna 210 Centurion",
+
+            // === CESSNA CITATION (Business Jets) ===
+            "C500": "Cessna Citation I", "C501": "Cessna Citation I/SP", "C510": "Cessna Citation Mustang",
+            "C525": "Cessna CitationJet", "C550": "Cessna Citation II", "C551": "Cessna Citation II/SP",
+            "C560": "Cessna Citation V", "C56X": "Cessna Citation Excel", "C680": "Cessna Citation Sovereign",
+            "C700": "Cessna Citation Longitude", "C750": "Cessna Citation X",
+
+            // === PIPER ===
+            "P28A": "Piper PA-28 Cherokee", "P28B": "Piper PA-28 Cherokee", "P28R": "Piper PA-28 Arrow", "P28T": "Piper PA-28 Turbo Arrow",
+            "PA18": "Piper PA-18 Super Cub", "PA22": "Piper PA-22 Tri-Pacer", "PA23": "Piper PA-23 Apache",
+            "PA24": "Piper PA-24 Comanche", "PA27": "Piper PA-27 Aztec", "PA30": "Piper PA-30 Twin Comanche",
+            "PA31": "Piper PA-31 Navajo", "PA32": "Piper PA-32 Cherokee Six", "PA34": "Piper PA-34 Seneca",
+            "PA38": "Piper PA-38 Tomahawk", "PA44": "Piper PA-44 Seminole", "PA46": "Piper PA-46 Malibu",
+
+            // === CIRRUS ===
+            "SR20": "Cirrus SR20", "SR22": "Cirrus SR22", "SF50": "Cirrus Vision Jet",
+
+            // === BEECHCRAFT ===
+            "BE9L": "Beechcraft King Air", "BE20": "Beechcraft King Air 200", "B350": "Beechcraft King Air 350",
+            "BE30": "Beechcraft King Air 90", "BE33": "Beechcraft Bonanza", "BE35": "Beechcraft Bonanza",
+            "BE36": "Beechcraft Bonanza", "BE40": "Beechcraft Beechjet 400", "BE58": "Beechcraft Baron",
+            "BE60": "Beechcraft Duke", "BE76": "Beechcraft Duchess", "BE95": "Beechcraft Baron", "BE99": "Beechcraft 99 Airliner",
+
+            // === DIAMOND ===
+            "DA20": "Diamond DA20 Katana", "DA40": "Diamond DA40 Star", "DA42": "Diamond DA42 Twin Star", "DA62": "Diamond DA62",
+
+            // === PILATUS ===
+            "PC6": "Pilatus PC-6 Porter", "PC12": "Pilatus PC-12", "PC21": "Pilatus PC-21", "PC24": "Pilatus PC-24",
+
+            // === GULFSTREAM ===
+            "G150": "Gulfstream G150", "GLF2": "Gulfstream II", "GLF3": "Gulfstream III",
+            "GLF4": "Gulfstream IV", "GLF5": "Gulfstream V", "GLF6": "Gulfstream G650",
+            "GLEX": "Bombardier Global Express", "G280": "Gulfstream G280",
+
+            // === BOMBARDIER BUSINESS JETS ===
+            "CL30": "Bombardier Challenger 300", "CL35": "Bombardier Challenger 350",
+            "CL60": "Bombardier Challenger 600", "CL65": "Bombardier Challenger 650",
+            "BD10": "Bombardier Global 7500", "BD700": "Bombardier Global Express",
+
+            // === DASSAULT FALCON ===
+            "F2TH": "Dassault Falcon 2000", "F900": "Dassault Falcon 900",
+            "FA7X": "Dassault Falcon 7X", "FA8X": "Dassault Falcon 8X",
+            "FA50": "Dassault Falcon 50", "FA5X": "Dassault Falcon 5X",
+
+            // === LEARJET ===
+            "LJ23": "Learjet 23", "LJ24": "Learjet 24", "LJ25": "Learjet 25",
+            "LJ31": "Learjet 31", "LJ35": "Learjet 35", "LJ40": "Learjet 40",
+            "LJ45": "Learjet 45", "LJ55": "Learjet 55", "LJ60": "Learjet 60",
+            "LJ75": "Learjet 75", "LJ85": "Learjet 85",
+
+            // === OTHER BUSINESS JETS ===
+            "HDJT": "Honda HondaJet", "HDZB": "Honda HondaJet", "TBM7": "Daher TBM 700",
+            "TBM8": "Daher TBM 850", "TBM9": "Daher TBM 900", "TOBA": "Daher Socata TBM",
+
+            // === HELICOPTERS ===
+            "R22": "Robinson R22", "R44": "Robinson R44", "R66": "Robinson R66",
+            "B06": "Bell 206 JetRanger", "B407": "Bell 407", "B412": "Bell 412", "B429": "Bell 429 GlobalRanger",
+            "B47": "Bell 47", "B206": "Bell 206 JetRanger", "B212": "Bell 212", "B222": "Bell 222",
+            "AS50": "Airbus H125 Écureuil", "AS55": "Airbus AS355", "EC20": "Airbus EC120", "EC30": "Airbus EC130",
+            "EC35": "Airbus H135", "EC45": "Airbus H145", "H125": "Airbus H125", "H135": "Airbus H135", "H145": "Airbus H145",
+            "S61": "Sikorsky S-61", "S76": "Sikorsky S-76", "S92": "Sikorsky S-92",
+            "AW09": "Leonardo AW109", "AW39": "Leonardo AW139", "AW69": "Leonardo AW169",
+            "MD50": "MD Helicopters MD 500", "MD52": "MD Helicopters MD 520", "MD60": "MD Helicopters MD 600",
+
+            // === MILITARY TRANSPORT/TANKER ===
+            "A400": "Airbus A400M Atlas", "C130": "Lockheed C-130 Hercules", "C30J": "Lockheed Martin C-130J Super Hercules", "C17": "Boeing C-17 Globemaster III",
+            "C135": "Boeing C-135", "C141": "Lockheed C-141 Starlifter", "C5": "Lockheed C-5 Galaxy",
+            "K35R": "Boeing KC-135 Stratotanker", "K35E": "Boeing KC-135 Stratotanker", "KC10": "McDonnell Douglas KC-10 Extender", "KC46": "Boeing KC-46 Pegasus",
+            "P3": "Lockheed P-3 Orion", "P8": "Boeing P-8 Poseidon",
+
+            // === MILITARY HELICOPTERS ===
+            "H60": "Sikorsky UH-60 Black Hawk", "UH60": "Sikorsky UH-60 Black Hawk", "H47": "Boeing CH-47 Chinook",
+            "CH47": "Boeing CH-47 Chinook", "H53": "Sikorsky CH-53 Sea Stallion", "CH53": "Sikorsky CH-53 Sea Stallion",
+            "V22": "Bell Boeing V-22 Osprey",
+
+            // === MILITARY FIGHTERS/ATTACK ===
+            "A10": "Fairchild Republic A-10 Thunderbolt II", "F4": "McDonnell Douglas F-4 Phantom II",
+            "F15": "McDonnell Douglas F-15 Eagle", "F16": "General Dynamics F-16 Fighting Falcon", "F18": "McDonnell Douglas F/A-18 Hornet",
+            "F22": "Lockheed Martin F-22 Raptor", "F35": "Lockheed Martin F-35 Lightning II",
+            "F5": "Northrop F-5 Tiger II", "AV8B": "McDonnell Douglas AV-8B Harrier II", "EUFI": "Eurofighter Typhoon",
+            "TNAD": "Panavia Tornado", "RFAL": "Dassault Rafale", "GRIP": "Saab JAS 39 Gripen",
+
+            // === MILITARY TRAINERS ===
+            "T1": "Beechcraft T-1 Jayhawk", "T6": "Beechcraft T-6 Texan II", "T38": "Northrop T-38 Talon",
+            "T45": "McDonnell Douglas T-45 Goshawk", "T50": "KAI T-50 Golden Eagle",
+            "TEX2": "Beechcraft T-6 Texan II", "HAWK": "BAE Systems Hawk",
+
+            // === CLASSIC/VINTAGE ===
+            "DC3": "Douglas DC-3", "C47": "Douglas C-47 Skytrain", "AN2": "Antonov An-2",
+            "B17": "Boeing B-17 Flying Fortress", "B25": "North American B-25 Mitchell", "B29": "Boeing B-29 Superfortress",
+            "P51": "North American P-51 Mustang", "SPIT": "Supermarine Spitfire", "HURI": "Hawker Hurricane"
+        };
+
+        // Fallback handler for unknown types
+        function getAircraftTypeName(typeCode) {
+            if (!typeCode) return "UNKNOWN TYPE";
+            
+            // Direct match
+            if (AIRCRAFT_TYPES[typeCode]) {
+                return AIRCRAFT_TYPES[typeCode];
+            }
+            
+            // Try partial matches for variants (e.g., "B738-800" → "B738")
+            const baseCode = typeCode.split('-')[0];
+            if (AIRCRAFT_TYPES[baseCode]) {
+                return AIRCRAFT_TYPES[baseCode];
+            }
+            
+            // Generic type families as last resort
+            const typeFamily = {
+                'A3': 'Airbus A3xx',
+                'A2': 'Airbus A2xx',
+                'B7': 'Boeing 7-Series',
+                'B6': 'Boeing 6-Series',
+                'MD': 'McDonnell Douglas',
+                'DC': 'Douglas',
+                'C1': 'Cessna',
+                'P2': 'Piper',
+                'E1': 'Embraer',
+                'CRJ': 'Bombardier CRJ',
+                'DH': 'De Havilland',
+                'AT': 'ATR'
+            };
+            
+            for (const [prefix, family] of Object.entries(typeFamily)) {
+                if (typeCode.startsWith(prefix)) {
+                    return `${family} (${typeCode})`;
+                }
+            }
+            
+            // Give up, show the code
+            return typeCode;
+        }
 
         // DOM Elements
         const dom = {
@@ -483,6 +577,7 @@ const AIRCRAFT_TYPES = {
             locDisplay: document.getElementById('locDisplay'),
             locToggle: document.getElementById('locToggle'),
             soundToggle: document.getElementById('soundToggle'),
+            voiceToggle: document.getElementById('voiceToggle'),
             radiusSelect: document.getElementById('radiusSelect'),
             errorBanner: document.getElementById('errorBanner'),
             standbyClock: document.getElementById('standbyClock'),
@@ -522,6 +617,8 @@ const AIRCRAFT_TYPES = {
             fetchInterval: null,
             wakeLock: null,
             soundEnabled: CONFIG.SOUND_ENABLED_DEFAULT,
+            voiceEnabled: CONFIG.VOICE_ENABLED_DEFAULT,
+            lastVoiceCallout: 0,
             notifiedAircraft: new Set(),
             audioContext: null,
             errorTimeout: null
@@ -533,6 +630,7 @@ const AIRCRAFT_TYPES = {
             
             dom.locToggle.addEventListener('click', toggleGeolocation);
             dom.soundToggle.addEventListener('click', toggleSound);
+            dom.voiceToggle.addEventListener('click', toggleVoice);
             dom.radiusSelect.addEventListener('change', (e) => {
                 state.searchRadius = parseInt(e.target.value);
                 fetchNearbyAircraft();
@@ -559,6 +657,17 @@ const AIRCRAFT_TYPES = {
             state.soundEnabled = !state.soundEnabled;
             dom.soundToggle.classList.toggle('active', state.soundEnabled);
             dom.soundToggle.textContent = state.soundEnabled ? 'SOUND ON' : 'SOUND';
+        }
+
+        function toggleVoice() {
+            state.voiceEnabled = !state.voiceEnabled;
+            dom.voiceToggle.classList.toggle('active', state.voiceEnabled);
+            dom.voiceToggle.textContent = state.voiceEnabled ? 'VOICE ON' : 'VOICE';
+            
+            // Test voice on enable
+            if (state.voiceEnabled && 'speechSynthesis' in window) {
+                speakCallout("Voice callouts enabled");
+            }
         }
 
         // Geolocation Management
@@ -667,6 +776,17 @@ const AIRCRAFT_TYPES = {
                         });
                     }
 
+                    // Voice callout for closest aircraft
+                    if (state.voiceEnabled && planes.length > 0) {
+                        const closestPlane = planes[0];
+                        const voiceKey = closestPlane.hex + '_voice';
+                        // Only announce if it's new or within 2 miles
+                        if (!state.notifiedAircraft.has(voiceKey) || closestPlane.distance < 2) {
+                            state.notifiedAircraft.add(voiceKey);
+                            announceAircraft(closestPlane);
+                        }
+                    }
+
                     state.nearbyPlanes = planes;
                     if (planes.length > 0) {
                         if (state.currentPlaneIndex >= planes.length) {
@@ -704,6 +824,11 @@ const AIRCRAFT_TYPES = {
             
             updateDisplay();
             playClickSound();
+            
+            // Announce the aircraft we just switched to (bypass cooldown for manual selection)
+            if (state.voiceEnabled && state.nearbyPlanes[state.currentPlaneIndex]) {
+                announceAircraft(state.nearbyPlanes[state.currentPlaneIndex], true);
+            }
         }
 
         function setupSwipeControls() {
@@ -747,7 +872,7 @@ const AIRCRAFT_TYPES = {
             
             dom.dispCallsign.textContent = callsign;
             dom.dispCallsign.className = isEmergency ? 'callsign-row emergency' : 'callsign-row';
-            dom.dispType.textContent = AIRCRAFT_TYPES[plane.t] || plane.t || "UNKNOWN TYPE";
+            dom.dispType.textContent = getAircraftTypeName(plane.t);
             
             if (plane.r) {
                 dom.dispReg.textContent = plane.r;
@@ -869,6 +994,146 @@ const AIRCRAFT_TYPES = {
             gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
             oscillator.start(ctx.currentTime);
             oscillator.stop(ctx.currentTime + 0.05);
+        }
+
+        // Voice Callout System
+        function speakCallout(text) {
+            if (!('speechSynthesis' in window)) return;
+            
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = CONFIG.VOICE_RATE;
+            utterance.pitch = CONFIG.VOICE_PITCH;
+            utterance.volume = 1.0;
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function announceAircraft(plane, bypassCooldown = false) {
+            if (!state.voiceEnabled) return;
+            
+            const now = Date.now();
+            
+            // Cooldown check (skip if manually triggered by swipe)
+            if (!bypassCooldown && now - state.lastVoiceCallout < CONFIG.VOICE_COOLDOWN) return;
+            state.lastVoiceCallout = now;
+            
+            // Build callout
+            const parts = [];
+            
+            // Check for emergency
+            const isEmergency = plane.squawk && CONFIG.EMERGENCY_SQUAWKS.includes(plane.squawk);
+            if (isEmergency) {
+                parts.push("Emergency traffic");
+            } else {
+                parts.push("Aircraft Detected");
+            }
+            
+            // Clock position
+            const bearing = calculateBearing(state.userLat, state.userLon, plane.lat, plane.lon);
+            const clockPos = getClockPosition(bearing);
+            parts.push(clockPos);
+            
+            // Distance
+            const distance = Math.round(plane.distance);
+            if (distance === 1) {
+                parts.push("1 mile");
+            } else {
+                parts.push(`${distance} miles`);
+            }
+            
+            // Callsign (cleaned up for speech)
+            const callsign = plane.flight ? plane.flight.trim() : null;
+            if (callsign) {
+                // Convert callsign to spoken format (e.g., "UAL123" → "United 1 2 3")
+                const spokenCallsign = formatCallsignForSpeech(callsign);
+                parts.push(spokenCallsign);
+            }
+            
+            // Aircraft type
+            const typeName = getAircraftTypeName(plane.t);
+            if (typeName && typeName !== "UNKNOWN TYPE") {
+                parts.push(typeName);
+            }
+            
+            // Altitude
+            const alt = plane.alt_baro;
+            if (alt === 'ground') {
+                parts.push("on the ground");
+            } else if (alt) {
+                const altFeet = Math.round(alt);
+                if (altFeet >= 18000) {
+                    // Flight levels
+                    const flightLevel = Math.round(altFeet / 100);
+                    parts.push(`flight level ${flightLevel}`);
+                } else {
+                    parts.push(`${Math.round(altFeet / 100) * 100} feet`);
+                }
+            }
+            
+            // Vertical status
+            const vrate = plane.baro_rate || 0;
+            if (alt !== 'ground') {
+                if (vrate > CONFIG.CLIMB_THRESHOLD) {
+                    parts.push("climbing");
+                } else if (vrate < CONFIG.DESCENT_THRESHOLD) {
+                    parts.push("descending");
+                }
+            }
+            
+            // Speak it
+            speakCallout(parts.join(", "));
+        }
+
+        function formatCallsignForSpeech(callsign) {
+            // Common airline codes
+            const airlineCodes = {
+                'UAL': 'United',
+                'AAL': 'American',
+                'DAL': 'Delta',
+                'SWA': 'Southwest',
+                'JBU': 'JetBlue',
+                'ASA': 'Alaska',
+                'FFT': 'Frontier',
+                'NKS': 'Spirit',
+                'BAW': 'Speedbird',
+                'DLH': 'Lufthansa',
+                'AFR': 'Air France',
+                'KLM': 'K L M',
+                'ACA': 'Air Canada',
+                'QFA': 'Qantas',
+                'UAE': 'Emirates',
+                'SIA': 'Singapore',
+                'CPA': 'Cathay'
+            };
+            
+            // Try to parse airline code + flight number
+            const match = callsign.match(/^([A-Z]{3})(\d+)$/);
+            if (match) {
+                const [, code, number] = match;
+                const airline = airlineCodes[code] || code;
+                // Speak numbers individually for clarity
+                const spokenNumber = number.split('').join(' ');
+                return `${airline} ${spokenNumber}`;
+            }
+            
+            // General aviation format (e.g., "N12345")
+            if (callsign.match(/^N\d/)) {
+                return callsign.split('').join(' ');
+            }
+            
+            // Fall back to original
+            return callsign;
+        }
+
+        function getClockPosition(bearing) {
+            // Convert bearing to clock position
+            // Assuming user facing north (0°) for now
+            let clockHour = Math.round(bearing / 30);
+            if (clockHour === 0) clockHour = 12;
+            return `${clockHour} o'clock`;
         }
 
         // Error Handling
