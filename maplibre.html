@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a0a">
+    <title>BIRD DETECTOR: PRO 3D</title>
+    
+    <script src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.css" rel="stylesheet" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --card-bg: #141414;
+            --text-main: #ffffff; 
+            --text-muted: #888888;
+            --accent-yellow: #FFD700;
+            --accent-red: #ff4444;
+            --accent-green: #44ff44;
+            --border-color: #333333;
+            --header-height: 70px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            height: 100vh; height: 100dvh;
+            display: flex; flex-direction: column;
+            overflow: hidden; position: fixed; width: 100%;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #map {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; background: #000;
+        }
+
+        .kiosk-header {
+            height: var(--header-height); min-height: var(--header-height);
+            padding: 12px 20px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.25); flex-shrink: 0; 
+            z-index: 60; position: absolute; top: 0; left: 0; width: 100%;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+        }
+
+        .kiosk-header.minimized {
+            transform: translateY(-100%); opacity: 0; pointer-events: none;
+        }
+
+        .location-label {
+            font-size: 14px; font-weight: 600; color: var(--text-muted);
+            letter-spacing: 1px; text-transform: uppercase; font-family: 'Space Mono', monospace;
+        }
+
+        .header-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+        .ctrl-element {
+            background: var(--card-bg); border: 1px solid var(--border-color);
+            color: var(--text-muted); padding: 4px 8px; border-radius: 4px;
+            cursor: pointer; font-size: 10px; font-family: 'Space Mono', monospace;
+            text-transform: uppercase; transition: all 0.2s ease; height: 26px;
+            display: flex; align-items: center;
+        }
+        .ctrl-element:hover { border-color: var(--text-main); color: var(--text-main); }
+        .ctrl-element:active { transform: scale(0.98); }
+        
+        /* Voice Button Style */
+        .voice-btn.active { background: var(--border-color); color: var(--accent-yellow); }
+
+        .radius-select {
+            appearance: none; -webkit-appearance: none; text-align: center; outline: none;
+            width: 70px; color: var(--text-main); background-color: var(--card-bg);
+        }
+        .radius-select option { background-color: #1a1a1a; color: #ffffff; }
+
+        .waiting-screen {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; text-align: center; gap: 20px; width: 100%;
+            background: rgba(0, 0, 0, 0.3); 
+            backdrop-filter: blur(2px);
+            z-index: 50; position: fixed; inset: 0;
+            pointer-events: none;
+        }
+.welcome-text {
+           font-family: 'Space Mono', monospace;
+            font-size: clamp(32px, 6vw, 56px); font-weight: 700; 
+            color: rgba(255, 255, 255, 0.9);
+			letter-spacing: 2px;
+            pointer-events: none;
+        }
+        .standby-clock {
+            font-family: 'Space Mono', monospace; font-size: clamp(48px, 12vw, 120px);
+            font-weight: 700; color: var(--text-main); line-height: 1;
+            text-shadow: 0 4px 20px rgba(0,0,0,1);
+        }
+        .waiting-message {
+            font-size: clamp(14px, 2vw, 18px); color: var(--text-muted);
+            font-family: 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 2px;
+            background: rgba(0,0,0,0.35);
+            padding: 4px 12px;
+            border-radius: 12px;
+        }
+
+        .flight-card {
+            width: 100%; height: 100%; background: transparent;
+            display: flex; flex-direction: column; opacity: 1; position: relative;
+            z-index: 40; pointer-events: none;
+        }
+
+        #touchLayer {
+            position: fixed; inset: 0; z-index: 45; pointer-events: auto;
+        }
+
+        .ahrs-crosshair {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 200px; height: 80px; z-index: 45; pointer-events: none; display: none;
+        }
+        .ahrs-crosshair svg path, circle { stroke: rgba(0, 255, 0, 0.6); fill: none; }
+
+        .bearing-display {
+            position: fixed; top: 56%; left: 50%; transform: translateX(-50%);
+            font-family: 'Space Mono', monospace; font-size: 24px; color: var(--text-muted);
+            z-index: 101; text-align: center; pointer-events: none;
+            letter-spacing: 1px; 
+            display: none;
+        }
+
+        .hud-top {
+            position: fixed; top: clamp(80px, 12vh, 120px); left: 0; right: 0;
+            text-align: center; z-index: 50; pointer-events: none;
+        }
+        .callsign-row {
+            font-size: clamp(48px, 10vw, 120px); font-weight: 900; 
+            color: rgba(255, 255, 255, 0.95); letter-spacing: 2px; line-height: 0.9; 
+            margin-bottom: clamp(8px, 1.5vh, 16px);
+        }
+        .emergency { color: var(--accent-red); animation: pulse 1s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+        .aircraft-type {
+            font-size: clamp(36px, 6vw, 80px); color: rgba(255, 255, 255, 0.9);
+            text-transform: uppercase; letter-spacing: 3px; font-weight: 600;
+            background: rgba(0, 0, 0, 0.35);
+            padding: 0 6px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        .aircraft-registration {
+            font-size: clamp(16px, 3vw, 24px); color: rgba(255, 255, 255, 0.8);
+            text-transform: uppercase; letter-spacing: 2px; font-weight: 400;
+            margin-top: 4px; 
+            display: none;
+        }
+
+        .hud-heading {
+            position: fixed; top: clamp(16px, 2.5vh, 24px); left: 50%;
+            transform: translateX(-50%); font-family: 'Space Mono', monospace;
+            font-size: clamp(32px, 6vw, 56px); font-weight: 700; 
+            color: rgba(255, 255, 255, 0.9);
+            z-index: 60; letter-spacing: 2px;
+            pointer-events: none;
+        }
+
+        .hud-corner { position: fixed; z-index: 50; pointer-events: none; }
+        .hud-tl { top: clamp(16px, 2.5vh, 24px); left: clamp(16px, 2.5vw, 24px); }
+        .hud-tr { top: clamp(16px, 2.5vh, 24px); right: clamp(16px, 2.5vw, 24px); text-align: right; }
+        .hud-bl { bottom: clamp(16px, 2.5vh, 24px); left: clamp(16px, 2.5vw, 24px); }
+        .hud-br { bottom: clamp(16px, 2.5vh, 24px); right: clamp(16px, 2.5vw, 24px); text-align: right; }
+        
+        .hud-label {
+            font-size: clamp(9px, 1.5vw, 11px); color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; 
+            margin-bottom: 4px; 
+        }
+        .hud-value {
+            font-family: 'Space Mono', monospace; font-size: clamp(24px, 4.5vw, 42px);
+            font-weight: 700; color: rgba(255, 255, 255, 0.95); line-height: 1;
+            white-space: nowrap; 
+        }
+        .alt-trend { display: inline-block; margin-left: 8px; font-size: 0.8em; }
+
+        .aircraft-counter {
+            position: fixed; bottom: clamp(16px, 2.5vh, 24px); 
+            left: 50%; transform: translateX(-50%);
+            font-family: 'Space Mono', monospace; font-size: clamp(12px, 2vw, 16px);
+            color: rgba(255, 255, 255, 0.6); z-index: 50; pointer-events: none;
+        }
+
+        .swipe-indicator {
+            position: fixed; bottom: clamp(40px, 5vh, 60px); 
+            left: 50%; transform: translateX(-50%);
+            font-family: 'Space Mono', monospace; font-size: clamp(10px, 1.5vw, 12px);
+            color: rgba(255, 255, 255, 0.4); z-index: 50; pointer-events: none;
+            text-transform: uppercase; letter-spacing: 1px;
+            animation: fadeInOut 3s ease-in-out infinite;
+        }
+        @keyframes fadeInOut { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+        .error-banner {
+            position: fixed; top: 0; left: 0; right: 0; 
+            background: var(--accent-red); color: white;
+            padding: 12px 20px; text-align: center; z-index: 100;
+            font-family: 'Space Mono', monospace; font-size: 12px;
+            transform: translateY(-100%); transition: transform 0.3s ease;
+        }
+        .error-banner.visible { transform: translateY(0); }
+
+        .idle-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            z-index: 200; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s ease;
+        }
+        .idle-overlay.active { opacity: 1; pointer-events: auto; }
+        .idle-icon { font-size: 48px; margin-bottom: 20px; color: var(--accent-yellow); }
+        .idle-text {
+            font-family: 'Space Mono', monospace; font-size: 18px;
+            color: var(--text-main); text-transform: uppercase; letter-spacing: 2px;
+            margin-bottom: 30px; text-align: center;
+        }
+        .resume-btn {
+            background: transparent; border: 1px solid var(--accent-green);
+            color: var(--accent-green); padding: 12px 32px;
+            font-family: 'Space Mono', monospace; font-size: 14px;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+        }
+        
+        .maplibregl-ctrl.maplibregl-ctrl-attrib {
+            background-color: rgba(0, 0, 0, 0.7) !important; 
+            border-radius: 4px;
+        }
+        .maplibregl-ctrl-attrib a, 
+        .maplibregl-ctrl-attrib {
+            color: #666666 !important; 
+            text-decoration: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="touchLayer"></div>
+    <div class="error-banner" id="errorBanner"></div>
+
+    <div class="idle-overlay" id="idleOverlay">
+        <div class="idle-icon">⚡</div>
+        <div class="idle-text">Power Saving Mode Active</div>
+        <button class="resume-btn" onclick="wakeUp()">RESUME TRACKING</button>
+    </div>
+
+    <header class="kiosk-header" id="header">
+        <div class="location-label" id="locDisplay">ACQUIRING GEOLOCATION...</div>
+        <div class="header-controls">
+            <button class="ctrl-element voice-btn" id="voiceToggle">VOICE</button>
+            <select class="ctrl-element radius-select" id="radiusSelect">
+                <option value="3" selected>3 MI</option>
+                <option value="5">5 MI</option>
+                <option value="10">10 MI</option>
+                <option value="20">20 MI</option>
+            </select>
+        </div>
+    </header>
+
+    <main style="position: relative; width: 100%; height: 100%;">
+        <div class="waiting-screen" id="waitingView">
+            <div class="welcome-text">GIANT METAL BIRD</div>
+            
+            <div class="standby-clock" id="standbyClock">00:00:00</div>
+            <div class="waiting-message" id="waitingMsg">SCANNING AIRSPACE</div>
+        </div>
+
+        <div class="flight-card" id="flightView" style="display: none;">
+            <div class="ahrs-crosshair">
+                <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 30,40 L 85,40" stroke-width="2"/>
+                    <path d="M 115,40 L 170,40" stroke-width="2"/>
+                    <circle cx="100" cy="40" r="3" stroke-width="0" fill="#4f4"/>
+                    <path d="M 100,20 L 100,35" stroke-width="2"/>
+                    <path d="M 100,45 L 100,60" stroke-width="2"/>
+                </svg>
+            </div>
+
+            <div class="bearing-display" id="dispBearing">LOOK: N (000°)</div>
+
+            <div class="hud-top">
+                <div class="callsign-row" id="dispCallsign">—</div>
+                <div class="aircraft-type" id="dispType">UNKNOWN</div>
+                <div class="aircraft-registration" id="dispReg"></div>
+            </div>
+
+            <div class="hud-heading" id="dispHdg">000°</div>
+
+            <div class="hud-corner hud-tl">
+                <div class="hud-label">ALTITUDE</div>
+                <div class="hud-value" id="dispAlt">— FT<span class="alt-trend" id="altTrend"></span></div>
+            </div>
+
+            <div class="hud-corner hud-tr">
+                <div class="hud-label">SPEED</div>
+                <div class="hud-value" id="dispSpd">— KTS</div>
+            </div>
+
+            <div class="hud-corner hud-bl">
+                <div class="hud-label">DISTANCE</div>
+                <div class="hud-value" id="dispDist">— MI</div>
+            </div>
+
+            <div class="hud-corner hud-br">
+                <div class="hud-label">STATUS</div>
+                <div class="hud-value" id="dispStatus">—</div>
+            </div>
+
+            <div class="aircraft-counter" id="aircraftCounter">1 / 1</div>
+            <div class="swipe-indicator" id="swipeIndicator">← SWIPE TO CYCLE →</div>
+        </div>
+    </main>
+
+    <script>
+        // === CONFIGURATION ===
+        const CONFIG = {
+            AIRCRAFT_API: 'https://api.airplanes.live/v2/point/',
+            POLL_INTERVAL: 2000,
+            CLIMB_THRESHOLD: 500,
+            DESCENT_THRESHOLD: -500,
+            EMERGENCY_SQUAWKS: ['7500', '7600', '7700'],
+            VOICE_RATE: 1.1,
+            VOICE_COOLDOWN: 20000,
+            VOICE_REPEAT_DELAY: 60000
+        };
+
+        // === AIRCRAFT TYPES ===
+        const AIRCRAFT_TYPES = {
+            "A20N": "Airbus A320neo", "A19N": "Airbus A319neo", "A21N": "Airbus A321neo",
+            "A319": "Airbus A319", "A320": "Airbus A320", "A321": "Airbus A321",
+            "A332": "Airbus A330-200", "A333": "Airbus A330-300", "A339": "Airbus A330-900",
+            "A359": "Airbus A350-900", "A388": "Airbus A380",
+            "B737": "Boeing 737-700", "B738": "Boeing 737-800", "B739": "Boeing 737-900",
+            "B38M": "Boeing 737 MAX 8", "B39M": "Boeing 737 MAX 9",
+            "B744": "Boeing 747-400", "B748": "Boeing 747-8",
+            "B772": "Boeing 777-200", "B77W": "Boeing 777-300ER",
+            "B788": "Boeing 787-8", "B789": "Boeing 787-9", "B78X": "Boeing 787-10",
+            "C172": "Cessna 172", "P28A": "Piper PA-28", "SR22": "Cirrus SR22",
+            "E75L": "Embraer E175", "CRJ9": "Bombardier CRJ-900"
+        };
+
+        function getAircraftTypeName(typeCode) {
+            if (!typeCode) return "UNKNOWN TYPE";
+            if (AIRCRAFT_TYPES[typeCode]) return AIRCRAFT_TYPES[typeCode];
+            if(typeCode.startsWith("B7")) return "Boeing " + typeCode;
+            if(typeCode.startsWith("A3")) return "Airbus " + typeCode;
+            return typeCode;
+        }
+
+        // === STATE ===
+        const dom = {
+            header: document.getElementById('header'),
+            touchLayer: document.getElementById('touchLayer'),
+            locDisplay: document.getElementById('locDisplay'),
+            voiceToggle: document.getElementById('voiceToggle'),
+            radiusSelect: document.getElementById('radiusSelect'),
+            errorBanner: document.getElementById('errorBanner'),
+            standbyClock: document.getElementById('standbyClock'),
+            waitingMsg: document.getElementById('waitingMsg'),
+            waitingView: document.getElementById('waitingView'),
+            flightView: document.getElementById('flightView'),
+            dispCallsign: document.getElementById('dispCallsign'),
+            dispType: document.getElementById('dispType'),
+            dispReg: document.getElementById('dispReg'),
+            dispDist: document.getElementById('dispDist'),
+            dispAlt: document.getElementById('dispAlt'),
+            altTrend: document.getElementById('altTrend'),
+            dispSpd: document.getElementById('dispSpd'),
+            dispHdg: document.getElementById('dispHdg'),
+            dispStatus: document.getElementById('dispStatus'),
+            dispBearing: document.getElementById('dispBearing'),
+            aircraftCounter: document.getElementById('aircraftCounter'),
+            swipeIndicator: document.getElementById('swipeIndicator')
+        };
+
+        const state = {
+            geoEnabled: false,
+            geoWatchId: null,
+            userLat: null, userLon: null,
+            searchRadius: 3,
+            nearbyPlanes: [],
+            currentPlaneIndex: 0,
+            currentPlaneHex: null,
+            lastFetch: 0,
+            fetchInterval: null,
+            voiceEnabled: false, // Combined Audio Flag
+            lastVoiceCallout: 0,
+            notifiedAircraft: new Map(),
+            map: null,
+            lastTrack: 0
+        };
+
+        // === INITIALIZATION ===
+        function init() {
+            initMap();
+            
+            dom.voiceToggle.addEventListener('click', toggleVoice);
+            dom.radiusSelect.addEventListener('change', (e) => {
+                state.searchRadius = parseInt(e.target.value);
+                fetchNearbyAircraft();
+            });
+
+            dom.touchLayer.addEventListener('click', () => {
+                dom.header.classList.toggle('minimized');
+            });
+
+            setupSwipeControls();
+            setupKeyboardControls();
+            startStandbyClock();
+            requestGeolocation();
+            initWatchdog();
+        }
+
+        // === MAPLIBRE ENGINE ===
+        function initMap() {
+            state.map = new maplibregl.Map({
+                container: 'map',
+                style: {
+                    version: 8,
+                    sources: {
+                        'satellite': {
+                            type: 'raster',
+                            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                            tileSize: 256,
+                            attribution: '&copy; Esri'
+                        },
+                        'terrain': {
+                            type: 'raster-dem',
+                            tiles: ['https://demotiles.maplibre.org/terrain-tiles/{z}/{x}/{y}.png'],
+                            tileSize: 256
+                        }
+                    },
+                    layers: [
+                        { id: 'satellite-layer', type: 'raster', source: 'satellite', paint: { 'raster-opacity': 1 } }
+                    ],
+                    sky: {
+                        'sky-color': '#66aadd',
+                        'sky-horizon-blend': 0.5,
+                        'horizon-color': '#ffffff',
+                        'fog-color': '#ffffff',
+                        'fog-ground-blend': 0.5,
+                        'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 12, 0]
+                    }
+                },
+                center: [-74.0060, 40.7128], 
+                zoom: 12, 
+                pitch: 85, 
+                maxPitch: 85, 
+                interactive: false
+            });
+
+            state.map.on('load', () => {
+                state.map.setTerrain({ source: 'terrain', exaggeration: 1.5 });
+                state.map.setSky({
+                    'sky-color': '#199EF3',
+                    'horizon-color': '#ffffff',
+                    'fog-color': '#ffffff'
+                });
+                
+                if (!state.nearbyPlanes.length) {
+                    let bearing = 0;
+                    function frame() {
+                        if (!state.map || state.nearbyPlanes.length > 0) return;
+                        bearing += 0.05;
+                        state.map.setBearing(bearing);
+                        requestAnimationFrame(frame);
+                    }
+                    frame();
+                }
+            });
+        }
+
+        // === GEOLOCATION ===
+        function requestGeolocation() {
+            if (!navigator.geolocation) return showError('Geo not supported');
+
+            state.geoWatchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    state.geoEnabled = true;
+                    state.userLat = position.coords.latitude;
+                    state.userLon = position.coords.longitude;
+                    dom.locDisplay.textContent = `${state.userLat.toFixed(4)}, ${state.userLon.toFixed(4)}`;
+                    
+                    if (!state.fetchInterval) {
+                        fetchNearbyAircraft();
+                        state.fetchInterval = setInterval(fetchNearbyAircraft, CONFIG.POLL_INTERVAL);
+                    }
+                },
+                (err) => {
+                    state.geoEnabled = false;
+                    showError('Geolocation Failed');
+                },
+                { enableHighAccuracy: true, maximumAge: 30000 }
+            );
+        }
+
+        // === DATA FETCHING ===
+        async function fetchNearbyAircraft() {
+            if (!state.geoEnabled) return;
+            
+            try {
+                const url = `${CONFIG.AIRCRAFT_API}${state.userLat}/${state.userLon}/${state.searchRadius}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('API Error');
+                const json = await res.json();
+
+                if (json.ac && json.ac.length > 0) {
+                    const planes = json.ac
+                        .filter(p => p.lat && p.lon)
+                        .map(p => ({
+                            ...p,
+                            distance: calculateDistance(state.userLat, state.userLon, p.lat, p.lon)
+                        }))
+                        .sort((a, b) => a.distance - b.distance);
+
+                    handleAudio(planes);
+                    state.nearbyPlanes = planes;
+                    
+                    if (state.currentPlaneIndex >= planes.length) state.currentPlaneIndex = 0;
+                    updateDisplay();
+                } else {
+                    showNoAircraft();
+                }
+            } catch (e) { console.log(e); }
+        }
+
+        function showNoAircraft() {
+            state.nearbyPlanes = [];
+            dom.flightView.style.display = 'none';
+            dom.waitingView.style.display = 'flex';
+            dom.header.classList.remove('minimized');
+        }
+
+        function updateDisplay(immediate = false) {
+            if (!state.nearbyPlanes.length) return;
+            
+            const plane = state.nearbyPlanes[state.currentPlaneIndex];
+            dom.waitingView.style.display = 'none';
+            dom.flightView.style.display = 'flex';
+            dom.header.classList.add('minimized');
+
+            const callsign = plane.flight ? plane.flight.trim() : plane.r || plane.hex;
+            dom.dispCallsign.textContent = callsign;
+            dom.dispType.textContent = getAircraftTypeName(plane.t);
+            dom.dispReg.textContent = plane.r || '';
+            dom.dispDist.textContent = plane.distance.toFixed(1) + " MI";
+            dom.dispAlt.innerHTML = plane.alt_baro === 'ground' ? 'GND' : Math.round(plane.alt_baro) + ' FT';
+            dom.dispSpd.textContent = Math.round(plane.gs || 0) + ' KTS';
+            dom.dispHdg.textContent = Math.round(plane.track || 0).toString().padStart(3, '0') + '°';
+            
+            let status = "CRUISING";
+            const vrate = plane.baro_rate || 0;
+            if (plane.alt_baro === "ground") status = "TAXI";
+            else if (vrate > CONFIG.CLIMB_THRESHOLD) status = "CLIMB";
+            else if (vrate < CONFIG.DESCENT_THRESHOLD) status = "DESCEND";
+            dom.dispStatus.textContent = status;
+            dom.altTrend.textContent = vrate > CONFIG.CLIMB_THRESHOLD ? '↑' : (vrate < CONFIG.DESCENT_THRESHOLD ? '↓' : '');
+
+            const bearing = calculateBearing(state.userLat, state.userLon, plane.lat, plane.lon);
+            dom.dispBearing.textContent = `LOOK: ${getCardinalDirection(bearing)} (${Math.round(bearing)}°)`;
+            
+            dom.aircraftCounter.textContent = `${state.currentPlaneIndex + 1} / ${state.nearbyPlanes.length}`;
+            dom.swipeIndicator.style.display = state.nearbyPlanes.length > 1 ? 'block' : 'none';
+
+            // Banking Simulation
+            let bankAngle = 0;
+            if (state.lastTrack !== undefined && !immediate) {
+                let diff = (plane.track || 0) - state.lastTrack;
+                if (diff > 180) diff -= 360;
+                if (diff < -180) diff += 360;
+                bankAngle = Math.max(-45, Math.min(45, diff * 5));
+            }
+            state.lastTrack = plane.track || 0;
+
+            const crosshair = document.querySelector('.ahrs-crosshair');
+            if (crosshair) {
+                crosshair.style.transition = immediate ? 'none' : 'transform 1s ease-out';
+                crosshair.style.transform = `translate(-50%, -50%) rotate(${bankAngle}deg)`;
+            }
+
+            // Camera Logic
+            if (state.map) {
+                const targetZoom = getSmartZoom(plane.alt_baro);
+                const camTarget = getProjectedPoint(
+                    plane.lat, 
+                    plane.lon, 
+                    plane.track || 0, 
+                    getLookAheadDistance(targetZoom) 
+                );
+
+                const cameraParams = {
+                    center: camTarget,
+                    zoom: targetZoom,
+                    bearing: plane.track || 0,
+                    pitch: 85
+                };
+
+                if (immediate) {
+                    state.map.jumpTo(cameraParams);
+                } else {
+                    state.map.jumpTo({
+                        ...cameraParams,
+                        duration: CONFIG.POLL_INTERVAL + 100, 
+                        easing: t => t
+                    });
+                }
+            }
+        }
+
+        // === MATH HELPERS ===
+        function getSmartZoom(altitude) {
+            if (altitude === 'ground') return 16.5; 
+            if (typeof altitude !== 'number') return 14;
+            if (altitude < 1000) return 16;
+            if (altitude < 5000) return 14.5;
+            if (altitude < 15000) return 12.5;
+            return 10.5;
+        }
+
+        function getLookAheadDistance(zoom) {
+            if (zoom > 15) return 0.6; 
+            if (zoom > 12) return 3.0;
+            return 8.0;
+        }
+
+        function getProjectedPoint(lat, lon, bearing, distanceKm) {
+            const R = 6371; 
+            const radLat = toRadians(lat);
+            const radLon = toRadians(lon);
+            const radBear = toRadians(bearing);
+            const angDist = distanceKm / R;
+            const newLat = Math.asin(Math.sin(radLat) * Math.cos(angDist) + Math.cos(radLat) * Math.sin(angDist) * Math.cos(radBear));
+            const newLon = radLon + Math.atan2(Math.sin(radBear) * Math.sin(angDist) * Math.cos(radLat), Math.cos(angDist) - Math.sin(radLat) * Math.sin(newLat));
+            return [toDegrees(newLon), toDegrees(newLat)];
+        }
+
+        function toDegrees(rad) { return rad * 180 / Math.PI; }
+        function toRadians(d) { return d * Math.PI / 180; }
+
+        // === CONTROLS ===
+        function cycleAircraft(dir) {
+            if (state.nearbyPlanes.length <= 1) return;
+            state.currentPlaneIndex += dir;
+            if (state.currentPlaneIndex < 0) state.currentPlaneIndex = state.nearbyPlanes.length - 1;
+            if (state.currentPlaneIndex >= state.nearbyPlanes.length) state.currentPlaneIndex = 0;
+            
+            updateDisplay(true); 
+            
+            // Only speak if voice enabled
+            if (state.voiceEnabled) announceAircraft(state.nearbyPlanes[state.currentPlaneIndex], true);
+        }
+
+        function setupSwipeControls() {
+            let touchStartX = 0;
+            dom.touchLayer.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX);
+            dom.touchLayer.addEventListener('touchend', e => {
+                if (Math.abs(touchStartX - e.changedTouches[0].screenX) > 50) {
+                    cycleAircraft(touchStartX > e.changedTouches[0].screenX ? 1 : -1);
+                }
+            });
+        }
+
+        function setupKeyboardControls() {
+            document.addEventListener('keydown', e => {
+                if (e.key === 'ArrowLeft') cycleAircraft(-1);
+                if (e.key === 'ArrowRight') cycleAircraft(1);
+            });
+        }
+
+        // === AUDIO & VOICE ===
+        function toggleVoice() {
+            state.voiceEnabled = !state.voiceEnabled;
+            dom.voiceToggle.classList.toggle('active', state.voiceEnabled);
+            dom.voiceToggle.textContent = state.voiceEnabled ? "VOICE ON" : "VOICE";
+            if (state.voiceEnabled) speak("Voice Active");
+        }
+
+        function handleAudio(planes) {
+            if (!state.voiceEnabled) return;
+
+            // Voice announcement with delay check
+            if (planes.length > 0) {
+                const p = planes[0];
+                const now = Date.now();
+                const lastSpoken = state.notifiedAircraft.get(p.hex) || 0;
+
+                if (now - lastSpoken > CONFIG.VOICE_REPEAT_DELAY) {
+                    state.notifiedAircraft.set(p.hex, now);
+                    announceAircraft(p);
+                }
+            }
+        }
+
+        function announceAircraft(p, force=false) {
+            const now = Date.now();
+            if (!force && now - state.lastVoiceCallout < CONFIG.VOICE_COOLDOWN) return;
+            state.lastVoiceCallout = now;
+            
+            const bearing = calculateBearing(state.userLat, state.userLon, p.lat, p.lon);
+            const clock = Math.round(bearing / 30) || 12;
+            const type = getAircraftTypeName(p.t);
+            const dist = Math.round(p.distance);
+            const callsign = (p.flight || "Target").split('').join(' '); 
+            
+            let status = "Cruising";
+            const vrate = p.baro_rate || 0;
+            if (p.alt_baro === "ground") status = "Taxiing";
+            else if (vrate > CONFIG.CLIMB_THRESHOLD) status = "Climbing";
+            else if (vrate < CONFIG.DESCENT_THRESHOLD) status = "Descending";
+            
+            speak(`${type}, ${dist} miles, at ${clock} o'clock, Callsign ${callsign}, ${status}.`);
+        }
+
+        function speak(text) {
+            if (!window.speechSynthesis) return;
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = CONFIG.VOICE_RATE;
+            window.speechSynthesis.speak(u);
+        }
+
+        // === SLEEP MODE ===
+        function initWatchdog() {
+            const events = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll'];
+            events.forEach(evt => document.addEventListener(evt, resetIdle, {passive:true}));
+            resetIdle();
+        }
+        let idleTimer;
+        function resetIdle() {
+            if(document.getElementById('idleOverlay').classList.contains('active')) return;
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+                document.getElementById('idleOverlay').classList.add('active');
+                if(state.fetchInterval) { clearInterval(state.fetchInterval); state.fetchInterval=null; }
+            }, 120000); 
+        }
+        window.wakeUp = function() {
+            document.getElementById('idleOverlay').classList.remove('active');
+            resetIdle();
+            if(state.geoEnabled && !state.fetchInterval) {
+                fetchNearbyAircraft();
+                state.fetchInterval = setInterval(fetchNearbyAircraft, CONFIG.POLL_INTERVAL);
+            }
+        };
+
+        // === UTILS ===
+        function showError(msg) {
+            dom.errorBanner.textContent = msg;
+            dom.errorBanner.classList.add('visible');
+            setTimeout(() => dom.errorBanner.classList.remove('visible'), 5000);
+        }
+        function startStandbyClock() {
+            setInterval(() => dom.standbyClock.textContent = new Date().toLocaleTimeString(), 1000);
+        }
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 3958.8;
+            const dLat = toRadians(lat2-lat1), dLon = toRadians(lon2-lon1);
+            const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRadians(lat1))*Math.cos(toRadians(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+        function calculateBearing(lat1, lon1, lat2, lon2) {
+            const y = Math.sin(toRadians(lon2-lon1)) * Math.cos(toRadians(lat2));
+            const x = Math.cos(toRadians(lat1))*Math.sin(toRadians(lat2)) - Math.sin(toRadians(lat1))*Math.cos(toRadians(lat2))*Math.cos(toRadians(lon2-lon1));
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+        function getCardinalDirection(a) {
+            return ['N','NE','E','SE','S','SW','W','NW'][Math.round(((a%=360)<0?a+360:a)/45)%8];
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
