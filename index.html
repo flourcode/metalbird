@@ -12,7 +12,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
         /* === RESET & BASE === */
@@ -45,14 +45,12 @@
         .settings-btn {
             position: fixed; top: 20px; right: 20px;
             width: 44px; height: 44px;
-            background: rgba(10, 10, 10, 0.8);
+            background: #30D15880; color: white;
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            border: none;
             border-radius: 50%;
             cursor: pointer; z-index: 100;
             display: flex; align-items: center; justify-content: center;
-            color: white; font-size: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
         /* === SETTINGS PANEL === */
@@ -72,7 +70,7 @@
             padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         .settings-title { font-size: 17px; font-weight: 600; letter-spacing: 0.5px; }
-        .close-btn { background: none; border: none; color: #0A84FF; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .close-btn { background: none; border: none; color: #ffffff; font-size: 16px; font-weight: 600; cursor: pointer; }
 
         .settings-content { padding: 20px; }
         .setting-row {
@@ -98,7 +96,7 @@
 
         .radius-select {
             appearance: none; background: none; border: none;
-            color: #0A84FF; font-size: 16px; font-weight: 500;
+            color: #30D158; font-size: 16px; font-weight: 500;
             text-align: right; cursor: pointer;
         }
         .radius-select option { background: #000; color: #fff; }
@@ -117,10 +115,9 @@
 
         .hud-heading {
             font-family: 'Space Mono', monospace;
-			font-size: clamp(24px, 6vw, 40px); 
-			font-weight: 700;
+            font-size: clamp(24px, 6vw, 40px); 
+            font-weight: 700;
             display: inline-block; margin-bottom: 8px;
-            
         }
 
         .callsign-row {
@@ -130,10 +127,14 @@
         }
 
         .aircraft-type {
-			font-family: 'Space Mono', monospace;
+            font-family: 'Space Mono', monospace;
             font-size: clamp(24px, 6vw, 40px); font-weight: 900; 
             color: #ffffff; letter-spacing: -1px; line-height: 0.9; margin-top: 8px;
             text-transform: uppercase;
+            background: rgba(0, 0, 0, 0.35);
+            padding: 0 6px;
+            border-radius: 12px;
+            display: inline-block;
         }
 
         .flight-dashboard {
@@ -165,8 +166,6 @@
             display: inline-flex;
             align-items: center;
             border: 1px solid rgba(255,255,255,0.05);
-            
-            /* Prevent Status text from wrapping on small screens */
             white-space: nowrap; 
         }
 
@@ -191,7 +190,7 @@
         
         .welcome-text {
             font-family: 'Space Mono', monospace; font-size: clamp(14px, 3vw, 20px);
-            font-weight: 800; color: #FFfff; letter-spacing: 6px;
+            font-weight: 800; color: #ffffff; letter-spacing: 6px;
             margin-bottom: -10px; text-shadow: 0 2px 10px rgba(0,0,0,1);
         }
 
@@ -224,6 +223,16 @@
             position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
             font-family: 'Space Mono', monospace; font-size: 18px;
             color: rgba(255, 255, 255, 0.7); z-index: 50;
+			font-weight: 700; color: white;
+            font-variant-numeric: tabular-nums; 
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            padding: 0 8px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            white-space: nowrap; 
         }
 
         .swipe-indicator {
@@ -231,6 +240,16 @@
             font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
             color: rgba(255, 255, 255, 0.7); z-index: 50; letter-spacing: 1px;
             text-transform: uppercase; animation: fadeInOut 3s infinite;
+			font-weight: 700; color: white;
+            font-variant-numeric: tabular-nums; 
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            padding: 0 8px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            white-space: nowrap; 
         }
         @keyframes fadeInOut { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 
@@ -288,7 +307,7 @@
     </div>
 
     <div class="waiting-screen" id="waitingView">
-        <div class="welcome-text">Welcome to Airplane Detector!</div>
+        <div class="welcome-text">Welcome to AirplaneBot.</div>
         <div class="standby-clock" id="standbyClock">00:00</div>
         <button class="start-btn" id="startBtn">START SYSTEM</button>
         <div class="waiting-msg" id="waitingMsg">INITIALIZING SYSTEMS...</div>
@@ -296,7 +315,7 @@
 
     <div class="error-banner" id="errorBanner">Error</div>
     <div class="idle-overlay" id="idleOverlay">
-        <div class="idle-icon">⚡</div>
+        <div class="idle-icon">🔋</div>
         <div class="idle-text">Power Saving Mode</div>
         <button class="resume-btn" onclick="wakeUp()">Resume Tracking</button>
     </div>
@@ -324,6 +343,7 @@
                 <div class="data-label">ALTITUDE</div>
                 <div class="data-value"><span id="dispAlt">0</span><span class="unit">FT</span></div>
             </div>
+
             <div class="data-block align-right">
                 <div class="data-label">SPEED</div>
                 <div class="data-value"><span id="dispSpd">0</span><span class="unit">KTS</span></div>
@@ -349,141 +369,92 @@
             VOICE_REPEAT_DELAY: 60000
         };
 
-       // Aircraft Type Mapping (ICAO to common name)
+        // === AIRCRAFT DB ===
 const AIRCRAFT_TYPES = {
-    // --- Airbus Commercial ---
-    "A20N": "Airbus A320neo",
-    "A21N": "Airbus A321neo",
-    "A319": "Airbus A319",
-    "A320": "Airbus A320",
-    "A321": "Airbus A321",
-    "A332": "Airbus A330-200",
-    "A333": "Airbus A330-300",
-    "A339": "Airbus A330-900neo",
-    "A343": "Airbus A340-300",
-    "A346": "Airbus A340-600",
-    "A359": "Airbus A350-900",
-    "A35K": "Airbus A350-1000",
-    "A388": "Airbus A380",
-    "A306": "Airbus A300-600",
-    "A3ST": "Airbus Beluga",
-    "BCS1": "Airbus A220-100",
-    "BCS3": "Airbus A220-300",
+    // Airbus
+    "A20N": "Airbus A320neo", "A19N": "Airbus A319neo", "A21N": "Airbus A321neo",
+    "A319": "Airbus A319", "A320": "Airbus A320", "A321": "Airbus A321",
+    "A332": "Airbus A330-200", "A333": "Airbus A330-300", "A339": "Airbus A330-900neo",
+    "A343": "Airbus A340-300", "A346": "Airbus A340-600", "A359": "Airbus A350-900",
+    "A35K": "Airbus A350-1000", "A388": "Airbus A380", "A306": "Airbus A300-600",
+    "A3ST": "Airbus Beluga", "BCS1": "Airbus A220-100", "BCS3": "Airbus A220-300",
 
-    // --- Boeing Commercial ---
-    "B38M": "Boeing 737 MAX 8",
-    "B39M": "Boeing 737 MAX 9",
-    "B3XM": "Boeing 737 MAX 10",
-    "B712": "Boeing 717-200",
-    "B737": "Boeing 737-700",
-    "B738": "Boeing 737-800",
-    "B739": "Boeing 737-900",
-    "B733": "Boeing 737-300", // Classic
-    "B734": "Boeing 737-400", // Classic/Cargo
-    "B744": "Boeing 747-400",
-    "B748": "Boeing 747-8",
-    "B752": "Boeing 757-200",
-    "B753": "Boeing 757-300",
-    "B762": "Boeing 767-200",
-    "B763": "Boeing 767-300",
-    "B764": "Boeing 767-400",
-    "B772": "Boeing 777-200",
-    "B773": "Boeing 777-300",
-    "B77L": "Boeing 777-200LR",
-    "B77W": "Boeing 777-300ER",
-    "B788": "Boeing 787-8",
-    "B789": "Boeing 787-9",
-    "B78X": "Boeing 787-10",
+    // Boeing
+    "B38M": "Boeing 737 MAX 8", "B39M": "Boeing 737 MAX 9", "B3XM": "Boeing 737 MAX 10",
+    "B712": "Boeing 717-200", "B737": "Boeing 737-700", "B738": "Boeing 737-800",
+    "B739": "Boeing 737-900", "B733": "Boeing 737-300", "B734": "Boeing 737-400",
+    "B744": "Boeing 747-400", "B748": "Boeing 747-8", "B752": "Boeing 757-200",
+    "B753": "Boeing 757-300", "B762": "Boeing 767-200", "B763": "Boeing 767-300",
+    "B764": "Boeing 767-400", "B772": "Boeing 777-200", "B773": "Boeing 777-300",
+    "B77L": "Boeing 777-200LR", "B77W": "Boeing 777-300ER", "B788": "Boeing 787-8",
+    "B789": "Boeing 787-9", "B78X": "Boeing 787-10", "B7X": "Boeing 787-11", 
 
-    // --- Regional / Turboprops ---
-    "E135": "Embraer ERJ-135",
-    "E145": "Embraer ERJ-145",
-    "E170": "Embraer E170",
-    "E75L": "Embraer E175 (Long Wing)",
-    "E75S": "Embraer E175 (Short Wing)",
-    "E190": "Embraer E190",
-    "E195": "Embraer E195",
-    "E290": "Embraer E190-E2",
-    "E295": "Embraer E195-E2",
-    "CRJ1": "Bombardier CRJ-100",
-    "CRJ2": "Bombardier CRJ-200",
-    "CRJ7": "Bombardier CRJ-700",
-    "CRJ9": "Bombardier CRJ-900",
-    "CRJX": "Bombardier CRJ-1000",
-    "DH8D": "De Havilland Dash 8 Q400",
-    "AT75": "ATR 72-500",
-    "AT76": "ATR 72-600",
-    "AT45": "ATR 42-500",
+    // Embraer
+    "E135": "Embraer ERJ-135", "E145": "Embraer ERJ-145", "E170": "Embraer E170", "E75L": "Embraer E175",
+    "E75S": "Embraer E175", "E190": "Embraer E190", "E195": "Embraer E195", "E290": "Embraer E190-E2",
+    "E295": "Embraer E195-E2", 
 
-    // --- General Aviation (Piston/Prop) ---
-    "C152": "Cessna 152",
-    "C172": "Cessna 172 Skyhawk",
-    "C182": "Cessna 182 Skylane",
-    "C208": "Cessna 208 Caravan",
-    "P28A": "Piper PA-28 Cherokee/Archer",
-    "PA34": "Piper PA-34 Seneca",
-    "PA44": "Piper PA-44 Seminole",
-    "SR20": "Cirrus SR20",
-    "SR22": "Cirrus SR22",
-    "SF50": "Cirrus Vision Jet",
-    "BE36": "Beechcraft Bonanza",
-    "BE58": "Beechcraft Baron",
-    "DA40": "Diamond DA40 Star",
-    "DA42": "Diamond DA42 Twin Star",
+    // Bombardier
+    "CRJ1": "Bombardier CRJ-100", "CRJ2": "Bombardier CRJ-200", "CRJ7": "Bombardier CRJ-700",
+    "CRJ9": "Bombardier CRJ-900", "CRJX": "Bombardier CRJ-1000", 
 
-    // --- Business Jets / Turboprops ---
-    "PC12": "Pilatus PC-12",
-    "PC24": "Pilatus PC-24",
-    "BE20": "Beechcraft King Air 200",
-    "B350": "Beechcraft King Air 350",
-    "TBM9": "Daher TBM 900/910/930/940",
-    "C510": "Cessna Citation Mustang",
-    "C525": "Cessna Citation Jet (CJ1/2/3/4)",
-    "C56X": "Cessna Citation Excel/XLS",
-    "C680": "Cessna Citation Sovereign",
-    "C750": "Cessna Citation X",
-    "GLF4": "Gulfstream IV",
-    "GLF5": "Gulfstream V / G550",
-    "GLF6": "Gulfstream G650/G600",
-    "GLEX": "Bombardier Global Express",
-    "CL30": "Bombardier Challenger 300/350",
-    "CL60": "Bombardier Challenger 600/604/605",
-    "FA7X": "Dassault Falcon 7X",
-    "LJ35": "Learjet 35",
-    "LJ45": "Learjet 45",
-    "LJ60": "Learjet 60",
-    "HDZB": "HondaJet",
-    "E55P": "Embraer Phenom 300",
-    "E50P": "Embraer Phenom 100",
+    // ATR
+    "DH8D": "De Havilland Dash 8 Q400", "AT75": "ATR 72-500", "AT76": "ATR 72-600", "AT45": "ATR 42-500", 
 
-    // --- Helicopters ---
-    "R22":  "Robinson R22",
-    "R44":  "Robinson R44",
-    "R66":  "Robinson R66",
-    "B06":  "Bell 206 JetRanger",
-    "B407": "Bell 407",
-    "B429": "Bell 429 GlobalRanger",
-    "AS50": "Airbus H125 / AS350 Écureuil",
-    "EC35": "Airbus H135 / EC135",
-    "EC45": "Airbus H145 / EC145",
-    "AW39": "Leonardo AW139",
-    "S76":  "Sikorsky S-76",
-    "H60":  "Sikorsky UH-60 Black Hawk",
+    // Cessna
+    "C152": "Cessna 152", "C172": "Cessna 172 Skyhawk", "C182": "Cessna 182 Skylane", "C208": "Cessna 208 Caravan", 
+    "C310": "Cessna 310", "C414": "Cessna 414 Chancellor", "C525": "Cessna CJ", "C56X": "Cessna Excel", 
+    "C680": "Cessna Sovereign", "C750": "Cessna Citation X",
 
-    // --- Military (Commonly tracked) ---
-    "C130": "Lockheed C-130 Hercules",
-    "C30J": "Lockheed Martin C-130J Super Hercules",
-    "C17":  "Boeing C-17 Globemaster III",
-    "K35R": "Boeing KC-135 Stratotanker",
-    "P8":   "Boeing P-8 Poseidon",
-    "V22":  "Bell Boeing V-22 Osprey",
-    "F16":  "General Dynamics F-16 Fighting Falcon",
-    "F18":  "McDonnell Douglas F/A-18 Hornet",
-    "F22":  "Lockheed Martin F-22 Raptor",
-    "F35":  "Lockheed Martin F-35 Lightning II",
-    "EUFI": "Eurofighter Typhoon",
-    "T38":  "Northrop T-38 Talon",
-    "TEX2": "Beechcraft T-6 Texan II"
+    // Piper
+    "P28A": "Piper PA-28", "PA34": "Piper PA-34", "PA44": "Piper PA-44", 
+
+    // Cirrus
+    "SR20": "Cirrus SR20", "SR22": "Cirrus SR22", "SF50": "Cirrus Vision Jet",
+
+    // Beechcraft
+    "BE36": "Beechcraft Bonanza", "BE58": "Beechcraft Baron", "DA40": "Diamond DA40", "DA42": "Diamond DA42",
+    "BE20": "Beechcraft King Air 200", "B350": "Beechcraft King Air 350", 
+
+    // Pilatus
+    "PC12": "Pilatus PC-12", "PC24": "Pilatus PC-24",
+
+    // Daher
+    "TBM9": "Daher TBM 900",
+
+    // Business Jets
+    "GLF4": "Gulfstream IV", "GLF5": "Gulfstream V", "GLF6": "Gulfstream G650", 
+    "GLEX": "Bombardier Global", "CL30": "Bombardier Challenger 300", 
+    "CL60": "Bombardier Challenger 600", "FA7X": "Dassault Falcon 7X", 
+    "LJ35": "Learjet 35", "LJ45": "Learjet 45", "LJ60": "Learjet 60",
+
+    // Helicopters
+    "HDZB": "HondaJet", "E55P": "Embraer Phenom 300", "E50P": "Embraer Phenom 100", 
+    "R22": "Robinson R22", "R44": "Robinson R44", "R66": "Robinson R66", 
+    "B06": "Bell 206", "B407": "Bell 407", "B429": "Bell 429",
+    "AS50": "Airbus H125", "EC35": "Airbus H135", "EC45": "Airbus H145", 
+    "AW39": "Leonardo AW139", "S76": "Sikorsky S-76", "H60": "Sikorsky Black Hawk", 
+
+    // Military
+    "C130": "C-130 Hercules", "C30J": "C-130J Super Hercules", "C17": "C-17 Globemaster", 
+    "K35R": "KC-135 Stratotanker", "P8": "P-8 Poseidon", "V22": "V-22 Osprey", 
+    "F16": "F-16 Fighting Falcon", "F18": "F/A-18 Hornet", "F22": "F-22 Raptor", 
+    "F35": "F-35 Lightning II", "EUFI": "Eurofighter Typhoon", "T38": "T-38 Talon", 
+    "TEX2": "T-6 Texan II", 
+
+    // Additional Civil Aircraft
+    "C406": "Cessna 406", "C414": "Cessna 414 Chancellor", "C421": "Cessna 421 Golden Eagle",
+    "MD82": "McDonnell Douglas MD-82", "MD83": "McDonnell Douglas MD-83", 
+    "MD11": "McDonnell Douglas MD-11", "DC9": "McDonnell Douglas DC-9", 
+    "DC10": "McDonnell Douglas DC-10", "MD90": "McDonnell Douglas MD-90",
+    "F50": "Fokker 50", "F100": "Fokker 100", "EMB110": "Embraer EMB 110 Bandeirante",
+    "BAe146": "BAe 146", "J31": "Jetstream 31", "J41": "Jetstream 41", "D328": "Dornier 328",
+
+    // Regional Jets and Other
+    "CRJX": "Bombardier CRJ-1000", "E170": "Embraer E170", "E175": "Embraer E175", 
+    "E190": "Embraer E190", "E195": "Embraer E195", "ATR42": "ATR 42",
+    "ATR72": "ATR 72", "A220": "Airbus A220", "A318": "Airbus A318", 
+    "B767": "Boeing 767", "B787": "Boeing 787", "B777": "Boeing 777"
 };
 
 
@@ -525,7 +496,7 @@ const AIRCRAFT_TYPES = {
         const state = {
             geoEnabled: false,
             userLat: null, userLon: null,
-            searchRadius: 3,
+            searchRadius: 3, // Default 3 miles
             nearbyPlanes: [],
             currentPlaneIndex: 0,
             voiceEnabled: false,
@@ -540,7 +511,9 @@ const AIRCRAFT_TYPES = {
 
         // === INIT ===
         function init() {
-            initClock(); 
+            dom.radiusSelect.value = "3"; 
+            state.searchRadius = 3;
+			initClock(); 
             initSettings();
             initWatchdog();
             setupSwipeControls();
@@ -557,7 +530,7 @@ const AIRCRAFT_TYPES = {
             if('speechSynthesis' in window) {
                 state.voiceEnabled = true;
                 dom.voiceToggle.classList.add('active');
-                speak("Welcome to Airplane Detector, System Initializing");
+                speak("Welcome to AirplaneBot. System initializing. Please enjoy.");
             }
 
             if(navigator.geolocation) {
@@ -568,7 +541,7 @@ const AIRCRAFT_TYPES = {
                     state.userLon = pos.coords.longitude;
                     
                     if(!state.fetchInterval) {
-                        dom.waitingMsg.textContent = "SCANNING AIRSPACE...";
+                        dom.waitingMsg.textContent = `SCANNING ${state.searchRadius} MI RADIUS...`;
                         fetchNearbyAircraft();
                         state.fetchInterval = setInterval(fetchNearbyAircraft, CONFIG.POLL_INTERVAL);
                     }
@@ -577,13 +550,14 @@ const AIRCRAFT_TYPES = {
                 showError("Geolocation Not Supported");
             }
         }
-
-        function initSettings() {
+       function initSettings() {
             dom.settingsBtn.addEventListener('click', () => dom.settingsPanel.classList.add('open'));
             dom.closeSettings.addEventListener('click', () => dom.settingsPanel.classList.remove('open'));
             
             dom.radiusSelect.addEventListener('change', e => {
                 state.searchRadius = parseInt(e.target.value);
+                state.firstFix = false; 
+                dom.waitingMsg.textContent = `SCANNING ${state.searchRadius} MI RADIUS...`;
                 fetchNearbyAircraft();
             });
 
@@ -596,8 +570,7 @@ const AIRCRAFT_TYPES = {
                 }
             });
         }
-
-        // === MAP ENGINE (DARK MODE) ===
+        // === MAP ENGINE (FLAT SATELLITE ONLY) ===
         function initMap() {
             try {
                 state.map = new maplibregl.Map({
@@ -605,22 +578,19 @@ const AIRCRAFT_TYPES = {
                     style: {
                         version: 8,
                         sources: {
+                            // ONLY Esri Satellite
                             'satellite': {
                                 type: 'raster',
                                 tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                                tileSize: 256, attribution: '&copy; Esri'
-                            },
-                            'terrain': {
-                                type: 'raster-dem',
-                                tiles: ['https://demotiles.maplibre.org/terrain-tiles/{z}/{x}/{y}.png'],
-                                tileSize: 256
+                                tileSize: 256, 
+                                attribution: '&copy; Esri'
                             }
                         },
                         layers: [{ id: 'sat', type: 'raster', source: 'satellite', paint: {'raster-opacity': 1}}],
                         sky: {
-                            'sky-color': '#050510', /* DARK NAVY */
+                            'sky-color': '#050510', 
                             'sky-horizon-blend': 0.3,
-                            'horizon-color': '#0a2a4a', /* NAVY HORIZON */
+                            'horizon-color': '#0a2a4a', 
                             'fog-color': '#0a2a4a',
                             'fog-ground-blend': 0.6,
                             'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 12, 0]
@@ -630,8 +600,7 @@ const AIRCRAFT_TYPES = {
                 });
 
                 state.map.on('load', () => {
-                    state.map.setTerrain({ source: 'terrain', exaggeration: 1.5 });
-                    // Dark Mode Sky Update
+                    // Dark Mode Sky
                     state.map.setSky({ 
                         'sky-color': '#050510', 
                         'horizon-color': '#0a1a2a', 
@@ -641,7 +610,8 @@ const AIRCRAFT_TYPES = {
                     let bearing = 0;
                     function frame() {
                         if(!state.map || state.nearbyPlanes.length > 0) return;
-                        bearing += 0.05; state.map.setBearing(bearing);
+                        bearing += 0.05; 
+                        state.map.setBearing(bearing);
                         requestAnimationFrame(frame);
                     }
                     frame();
@@ -668,9 +638,9 @@ const AIRCRAFT_TYPES = {
                     
                     if(!state.firstFix) {
                         state.firstFix = true;
-                        updateDisplay(true);
+                        updateDisplay(true); // Force INSTANT Snap on first load
                     } else {
-                        updateDisplay(false);
+                        updateDisplay(false); // Smooth Glide on tracking
                     }
                     
                     handleAudio(state.nearbyPlanes);
@@ -678,7 +648,7 @@ const AIRCRAFT_TYPES = {
                     state.nearbyPlanes = [];
                     dom.flightView.style.display = 'none';
                     dom.waitingView.style.display = 'flex';
-                    if(dom.startBtn.style.display === 'none') dom.waitingMsg.textContent = "NO AIRCRAFT DETECTED. RELAX OR EXPAND RADIUS.";
+                    if(dom.startBtn.style.display === 'none') dom.waitingMsg.textContent = "NO AIRCRAFT FOUND. EXPAND RADIUS.";
                     state.firstFix = false;
                 }
             } catch(e) { console.log(e); }
@@ -724,8 +694,13 @@ const AIRCRAFT_TYPES = {
                 const target = getProjectedPoint(p.lat, p.lon, p.track || 0, getLookAheadDistance(zoom));
                 
                 const cam = { center: target, zoom: zoom, bearing: p.track || 0, pitch: 85 };
-                if(immediate) state.map.jumpTo(cam);
-                else state.map.easeTo({...cam, duration: CONFIG.POLL_INTERVAL, easing: t => t});
+                
+                if(immediate) {
+                    state.map.stop(); // Stop any flying animation
+                    state.map.jumpTo(cam); // INSTANT SNAP
+                } else {
+                    state.map.jumpTo({...cam, duration: CONFIG.POLL_INTERVAL, easing: t => t});
+                }
             }
         }
 
@@ -768,7 +743,7 @@ const AIRCRAFT_TYPES = {
             if(!state.voiceEnabled || !planes.length) return;
             const now = Date.now();
             if(state.notifiedAircraft.size > 100) {
-                const cutoff = now - 600000; // 10 Minutes
+                const cutoff = now - 600000; 
                 for(let [hex, time] of state.notifiedAircraft) {
                     if(time < cutoff) state.notifiedAircraft.delete(hex);
                 }
@@ -790,16 +765,11 @@ const AIRCRAFT_TYPES = {
             const status = p.alt_baro === 'ground' ? 'Taxiing' : (p.baro_rate > CONFIG.CLIMB_THRESHOLD ? 'Climbing' : 'Descending');
             speak(`${getAircraftTypeName(p.t)}, ${Math.round(p.distance)} miles, ${clock} o'clock. Callsign ${call}, ${status}.`);
         }
-		function speak(text) {
+        function speak(text) {
             if (!window.speechSynthesis) return;
-            
-            // Stop any current speech immediately so new alerts aren't delayed
             window.speechSynthesis.cancel();
-            
             const u = new SpeechSynthesisUtterance(text);
             u.rate = CONFIG.VOICE_RATE; 
-            
-            // No specific voice selection -> Uses default system voice
             window.speechSynthesis.speak(u);
         }
 
@@ -809,7 +779,9 @@ const AIRCRAFT_TYPES = {
             state.currentPlaneIndex += dir;
             if(state.currentPlaneIndex < 0) state.currentPlaneIndex = state.nearbyPlanes.length - 1;
             if(state.currentPlaneIndex >= state.nearbyPlanes.length) state.currentPlaneIndex = 0;
-            updateDisplay(true);
+            
+            updateDisplay(true); // Force Instant Jump on user action
+            
             if(state.voiceEnabled) announceAircraft(state.nearbyPlanes[state.currentPlaneIndex], true);
         }
         function setupSwipeControls() {
@@ -830,7 +802,6 @@ const AIRCRAFT_TYPES = {
         function initClock() { 
             setInterval(() => {
                 const d = new Date();
-                // This automatically formats to "3:45 PM"
                 dom.standbyClock.textContent = d.toLocaleTimeString([], {
                     hour: 'numeric', 
                     minute: '2-digit',
