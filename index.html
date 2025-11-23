@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
-    <title>AIRPLANE DETECTOR</title>
+    <title>SKY DASHBOARD GPU</title>
     
     <script src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.css" rel="stylesheet" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     
     <style>
         /* === RESET & BASE === */
@@ -21,556 +21,278 @@
         body {
             background-color: #000;
             color: #fff;
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Space Mono', monospace;
             height: 100vh; height: 100dvh;
             overflow: hidden; position: fixed; width: 100%;
-            -webkit-font-smoothing: antialiased;
         }
 
-        /* === MAP === */
+        /* === MAP CONTAINER === */
         #map { position: fixed; inset: 0; z-index: 0; background: #000; }
-        .maplibregl-ctrl-top-left, .maplibregl-ctrl-top-right { display: none !important; }
         
-        /* Custom Attribution (Dark Mode) */
-        .maplibregl-ctrl-attrib {
-            background: rgba(0,0,0,0.8) !important;
-            backdrop-filter: blur(4px);
-            color: #444 !important;
-            border-radius: 4px; font-size: 10px !important;
-            opacity: 0.6;
+        .maplibregl-canvas {
+            filter: grayscale(50%) invert(100%) sepia(50%) hue-rotate(70deg) saturate(80%) brightness(0.7) contrast(1.2);
         }
-        .maplibregl-ctrl-attrib a { color: #666 !important; text-decoration: none; }
+        
+        .maplibregl-ctrl { display: none !important; }
 
-        /* === SETTINGS BUTTON === */
+        /* === HUD LAYOUT (CORNERS) === */
+        .hud-container {
+            position: fixed; inset: 0; z-index: 20; pointer-events: none;
+            padding: clamp(20px, 4vw, 40px);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+        }
+
+        /* CORNER: TOP LEFT (Time/Date) */
+        .hud-tl { align-self: start; justify-self: start; text-align: left; }
+        .dash-time {
+            font-size: clamp(40px, 8vw, 80px);
+            font-weight: 700; line-height: 0.9;
+            letter-spacing: -2px;
+            color: #f1f8e980;
+        }
+        .dash-date {
+            font-size: clamp(12px, 2vw, 16px);
+            font-weight: 400; margin-top: 6px;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: #a8c25680;
+        }
+
+        /* CORNER: TOP RIGHT (Weather) */
+        .hud-tr { align-self: start; justify-self: end; text-align: right; }
+        .wx-temp { font-size: clamp(32px, 6vw, 60px); font-weight: 700; line-height: 0.9; color: #f1f8e980; }
+        .wx-details { font-size: clamp(10px, 1.5vw, 14px); color: #a8c25680; margin-top: 6px; }
+
+        /* CORNER: BOTTOM LEFT (Geo/Status) */
+        .hud-bl { align-self: end; justify-self: start; text-align: left; }
+        .geo-loc { font-size: clamp(10px, 1.5vw, 14px); letter-spacing: 1px; font-weight: 700; color: #f1f8e980; }
+        .plane-count { font-size: 10px; color: #a8c25680; margin-top: 4px; }
+
+        /* CORNER: BOTTOM RIGHT (Settings) */
+        .hud-br { align-self: end; justify-self: end; pointer-events: auto; }
         .settings-btn {
-            position: fixed; top: 20px; right: 20px;
-            width: 44px; height: 44px;
-            background: #30D15880; color: white;
-            backdrop-filter: blur(20px);
-            border: none;
-            border-radius: 50%;
-            cursor: pointer; z-index: 100;
+            width: 44px; height: 44px; border-radius: 50%;
+            background: rgba(255,255,255,0.15); color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
             display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        .settings-btn:active { transform: scale(0.9); background: #fff; color: #000; }
+
+        /* === TARGET DATA CARD (CENTER) === */
+        .target-card {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            width: 90%; max-width: 380px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 24px;
+            z-index: 100;
+            display: none; opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            backdrop-filter: blur(20px);
+        }
+        .target-card.active { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+        .t-label { font-size: 10px; color: #666; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+        .t-callsign { font-size: 42px; font-weight: 700; line-height: 0.9; margin-bottom: 4px; letter-spacing: -2px;}
+        .t-type { font-size: 13px; color: #a8c256; margin-bottom: 24px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;}
+
+        .t-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; }
+        .t-item { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; }
+        .t-val { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: #fff; }
+        .t-unit { font-size: 9px; color: #888; margin-top: 2px; }
+        
+        /* New Phase Box */
+        .t-phase-box { grid-column: span 2; text-align: center; border: 1px solid rgba(168, 194, 86, 0.3); }
+        .t-phase-val { color: #a8c256; letter-spacing: 2px; }
+
+        .close-target {
+            margin-top: 24px;
+            background: #fff; color: #000;
+            border: none; padding: 14px 32px;
+            font-family: 'Space Mono'; font-weight: 700; font-size: 14px;
+            border-radius: 30px; cursor: pointer;
+        }
+
+        /* === MARKERS === */
+        .user-marker {
+            width: 40px; height: 40px;
+            background: #f1f8e980; 
+            border-radius: 50%; border: none; 
+            position: relative; z-index: 200;
         }
 
         /* === SETTINGS PANEL === */
         .settings-panel {
-            position: fixed; top: 0; right: -100%;
-            width: min(320px, 100vw); height: 100%;
-            background: rgba(5, 5, 5, 0.95); /* Pitch black glass */
-            backdrop-filter: blur(40px);
-            z-index: 200; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex; flex-direction: column;
-            border-left: 1px solid rgba(255,255,255,0.1);
-        }
-        .settings-panel.open { right: 0; }
-
-        .settings-header {
-            height: 60px; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .settings-title { font-size: 17px; font-weight: 600; letter-spacing: 0.5px; }
-        .close-btn { background: none; border: none; color: #ffffff; font-size: 16px; font-weight: 600; cursor: pointer; }
-
-        .settings-content { padding: 20px; }
-        .setting-row {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 16px; background: rgba(255,255,255,0.08);
-            border-radius: 12px; margin-bottom: 12px;
-        }
-        .setting-name { font-size: 15px; font-weight: 500; }
-
-        .toggle {
-            position: relative; width: 50px; height: 30px;
-            background: rgba(80, 80, 80, 0.5);
-            border-radius: 15px; cursor: pointer; transition: 0.3s;
-        }
-        .toggle.active { background: #30D158; }
-        .toggle::after {
-            content: ''; position: absolute; top: 2px; left: 2px;
-            width: 26px; height: 26px; background: #fff;
-            border-radius: 50%; transition: transform 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        .toggle.active::after { transform: translateX(20px); }
-
-        .radius-select {
-            appearance: none; background: none; border: none;
-            color: #30D158; font-size: 16px; font-weight: 500;
-            text-align: right; cursor: pointer;
-        }
-        .radius-select option { background: #000; color: #fff; }
-
-        /* === PREMIUM HUD === */
-        .flight-card {
-            position: fixed; inset: 0; z-index: 40; pointer-events: none;
-        }
-
-        .hud-top {
-            position: fixed; top: 80px; left: 0; right: 0;
-            text-align: center; z-index: 50; pointer-events: none;
-            background: none; 
-            padding-bottom: 40px;
-        }
-
-        .hud-heading {
-            font-family: 'Space Mono', monospace;
-            font-size: clamp(24px, 6vw, 40px); 
-            font-weight: 700;
-            display: inline-block; margin-bottom: 8px;
-        }
-
-        .callsign-row {
-             font-family: 'Space Mono', monospace;
-            font-size: clamp(48px, 10vw, 80px); font-weight: 900; 
-            color: #ffffff; letter-spacing: -2px; line-height: 0.9;
-        }
-
-        .aircraft-type {
-            font-family: 'Space Mono', monospace;
-            font-size: clamp(24px, 6vw, 40px); font-weight: 900; 
-            color: #ffffff; letter-spacing: -1px; line-height: 0.9; margin-top: 8px;
-            text-transform: uppercase;
-            background: rgba(0, 0, 0, 0.35);
-            padding: 0 6px;
-            border-radius: 12px;
-            display: inline-block;
-        }
-
-        .flight-dashboard {
-            position: fixed; bottom: 40px; left: 24px; right: 24px;
-            display: flex; justify-content: space-between; align-items: flex-end;
-            z-index: 50;
-        }
-
-        .data-block { display: flex; flex-direction: column; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
-        .align-right { text-align: right; align-items: flex-end; }
-
-        .data-label {
-            font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
-            color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px;
-            margin-bottom: 4px;
-        }
-
-        .data-value {
-            font-family: 'Space Mono', monospace; 
-            font-size: 32px; 
-            line-height: 36px; 
-            height: 36px;
-            font-weight: 700; color: white;
-            font-variant-numeric: tabular-nums; 
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(8px);
-            padding: 0 8px;
-            border-radius: 6px;
-            display: inline-flex;
-            align-items: center;
-            border: 1px solid rgba(255,255,255,0.05);
-            white-space: nowrap; 
-        }
-
-        .unit {
-            font-size: 14px; color: rgba(255,255,255,0.5); 
-            margin-left: 4px; font-weight: 500;
-        }
-
-        /* Center Crosshair */
-        .ahrs-crosshair {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 240px; height: 80px; z-index: 45; opacity: 0.6;
-        }
-        .ahrs-crosshair svg path, circle { stroke: rgba(255, 255, 255, 0.8); stroke-width: 1.5; fill: none; }
-
-        /* === WAITING STATE === */
-        .waiting-screen {
-            position: fixed; inset: 0; z-index: 50;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(20px);
-        }
-        
-        .welcome-text {
-            font-family: 'Space Mono', monospace; font-size: clamp(14px, 3vw, 20px);
-            font-weight: 800; color: #ffffff; letter-spacing: 6px;
-            margin-bottom: -10px; text-shadow: 0 2px 10px rgba(0,0,0,1);
-        }
-
-        .standby-clock {
-            font-family: 'Space Mono', monospace; font-size: clamp(40px, 12vw, 80px);
-            font-weight: 700; color: #fff; letter-spacing: -2px;
-            font-variant-numeric: tabular-nums; text-shadow: 0 4px 20px rgba(0,0,0,1);
-        }
-        
-        .start-btn {
-            margin-top: 40px;
-            background: #30D15880; color: white;
-            border: none; padding: 16px 40px;
-            border-radius: 30px; font-size: 16px; font-weight: 700;
-            letter-spacing: 1px; text-transform: uppercase;
-            cursor: pointer; box-shadow: 0 4px 20px rgba(48, 209, 88, 0.4);
-            transition: transform 0.2s; pointer-events: auto;
-        }
-        .start-btn:active { transform: scale(0.95); }
-
-        .waiting-msg {
-            font-family: 'Inter', sans-serif; font-size: 14px; color: rgba(255,255,255,0.6);
-            margin-top: 20px; letter-spacing: 2px; display: none; text-transform: uppercase;
-        }
-
-        /* === CONTROLS === */
-        #touchLayer { position: fixed; inset: 0; z-index: 45; pointer-events: auto; }
-        
-        .aircraft-counter {
-            position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
-            font-family: 'Space Mono', monospace; font-size: 18px;
-            color: rgba(255, 255, 255, 0.7); z-index: 50;
-			font-weight: 700; color: white;
-            font-variant-numeric: tabular-nums; 
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(8px);
-            padding: 0 8px;
-            border-radius: 6px;
-            display: inline-flex;
-            align-items: center;
-            border: 1px solid rgba(255,255,255,0.05);
-            white-space: nowrap; 
-        }
-
-        .swipe-indicator {
-            position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-            font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
-            color: rgba(255, 255, 255, 0.7); z-index: 50; letter-spacing: 1px;
-            text-transform: uppercase; animation: fadeInOut 3s infinite;
-			font-weight: 700; color: white;
-            font-variant-numeric: tabular-nums; 
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(8px);
-            padding: 0 8px;
-            border-radius: 6px;
-            display: inline-flex;
-            align-items: center;
-            border: 1px solid rgba(255,255,255,0.05);
-            white-space: nowrap; 
-        }
-        @keyframes fadeInOut { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
-
-        /* === NOTIFICATIONS === */
-        .error-banner {
-            position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-200px);
-            background: rgba(255, 59, 48, 0.9); backdrop-filter: blur(10px);
-            color: white; padding: 12px 24px; border-radius: 30px;
-            font-size: 14px; font-weight: 600; z-index: 200;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .error-banner.visible { transform: translateX(-50%) translateY(0); }
-
-        .idle-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.9);
-            backdrop-filter: blur(20px); z-index: 300;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            opacity: 0; pointer-events: none; transition: 0.5s;
+            z-index: 300; display: none; align-items: center; justify-content: center;
         }
-        .idle-overlay.active { opacity: 1; pointer-events: auto; }
-        .idle-icon { font-size: 40px; margin-bottom: 16px; color: #FFD700; }
-        .idle-text { font-size: 18px; color: #888; margin-bottom: 24px; }
-        .resume-btn {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            color: white; padding: 12px 32px; border-radius: 24px;
-            font-size: 15px; font-weight: 600; cursor: pointer;
+        .settings-panel.open { display: flex; }
+        .radius-opt { padding: 16px; font-size: 24px; color: #555; cursor: pointer; transition: 0.2s; }
+        .radius-opt:hover { color: #fff; }
+        .radius-opt.selected { color: #a8c256; font-weight: 700; transform: scale(1.1); }
+
+        /* === START SCREEN === */
+        .start-overlay {
+            position: fixed; inset: 0; z-index: 500; background: #000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .start-btn {
+            background: #a8c256; color: #000; border: none;
+            padding: 20px 40px; font-family: 'Space Mono'; font-weight: 700;
+            font-size: 18px; cursor: pointer; border-radius: 4px;
         }
     </style>
 </head>
 <body>
+
     <div id="map"></div>
-    <div id="touchLayer"></div>
 
-    <button class="settings-btn" id="settingsBtn"><span class="settings-icon">⋯</span></button>
+    <div class="hud-container">
+        <div class="hud-tl">
+            <div class="dash-time" id="clockTime">--:--</div>
+            <div class="dash-date" id="clockDate">INITIALIZING</div>
+        </div>
+        <div class="hud-tr">
+            <div class="wx-temp" id="wxTemp">--°</div>
+            <div class="wx-details">
+                <span id="wxCond">LOADING</span><br>
+                WIND <span id="wxWind">--</span> KT
+            </div>
+        </div>
+        <div class="hud-bl">
+            <div class="geo-loc" id="geoLoc">WAITING FOR GPS</div>
+            <div class="plane-count" id="planeCountStatus">RADAR OFFLINE</div>
+        </div>
+        <div class="hud-br">
+            <button class="settings-btn" id="settingsBtn">⚙</button>
+        </div>
+    </div>
+
+    <div class="target-card" id="targetCard">
+        <div class="t-label">LIVE TRACKING</div>
+        <div class="t-callsign" id="tCall">N/A</div>
+        <div class="t-type" id="tType">UNKNOWN</div>
+        
+        <div class="t-grid">
+            <div class="t-item">
+                <div class="t-label">ALTITUDE</div>
+                <div class="t-val"><span id="tAlt">0</span></div>
+                <div class="t-unit">FEET</div>
+            </div>
+            <div class="t-item">
+                <div class="t-label">DISTANCE</div>
+                <div class="t-val"><span id="tDist">0.0</span></div>
+                <div class="t-unit">MILES</div>
+            </div>
+            <div class="t-item">
+                <div class="t-label">SPEED</div>
+                <div class="t-val"><span id="tSpd">0</span></div>
+                <div class="t-unit">KNOTS</div>
+            </div>
+            <div class="t-item">
+                <div class="t-label">HEADING</div>
+                <div class="t-val"><span id="tHdg">000</span>°</div>
+                <div class="t-unit">TRUE</div>
+            </div>
+            <div class="t-item t-phase-box">
+                <div class="t-label" style="color:#a8c256;">FLIGHT PHASE</div>
+                <div class="t-val t-phase-val" id="tPhase">--</div>
+            </div>
+        </div>
+        
+        <button class="close-target" onclick="closeTarget()">RETURN TO MAP</button>
+    </div>
+
     <div class="settings-panel" id="settingsPanel">
-        <div class="settings-header">
-            <div class="settings-title">Settings</div>
-            <button class="close-btn" id="closeSettings">Hide</button>
-        </div>
-        <div class="settings-content">
-            <div class="setting-row">
-                <div class="setting-name">Detection Radius</div>
-                <select class="radius-select" id="radiusSelect">
-                    <option value="3" selected>3 Miles</option>
-                    <option value="5">5 Miles</option>
-                    <option value="10">10 Miles</option>
-                    <option value="20">20 Miles</option>
-                </select>
-            </div>
-            <div class="setting-row">
-                <div class="setting-name">Voice Announcements</div>
-                <div class="toggle" id="voiceToggle"></div>
-            </div>
+        <div style="text-align:center;">
+            <div style="color:#888; margin-bottom:30px; font-size: 12px; letter-spacing: 2px;">RADAR RANGE</div>
+            <div class="radius-opt" onclick="setRadius(3)">3 MILES</div>
+            <div class="radius-opt" onclick="setRadius(5)">5 MILES</div>
+            <div class="radius-opt" onclick="setRadius(10)">10 MILES</div>
+            <div class="radius-opt" onclick="setRadius(25)">25 MILES</div>
+            <button onclick="toggleSettings()" style="margin-top:50px; background:none; border:1px solid #333; color:#fff; padding:12px 32px; cursor:pointer; border-radius: 30px;">CLOSE</button>
         </div>
     </div>
 
-    <div class="waiting-screen" id="waitingView">
-        <div class="welcome-text">Welcome to AirplaneBot.</div>
-        <div class="standby-clock" id="standbyClock">00:00</div>
-        <button class="start-btn" id="startBtn">START SYSTEM</button>
-        <div class="waiting-msg" id="waitingMsg">INITIALIZING SYSTEMS...</div>
-    </div>
-
-    <div class="error-banner" id="errorBanner">Error</div>
-    <div class="idle-overlay" id="idleOverlay">
-        <div class="idle-icon">🔋</div>
-        <div class="idle-text">Power Saving Mode</div>
-        <button class="resume-btn" onclick="wakeUp()">Resume Tracking</button>
-    </div>
-
-    <div class="flight-card" id="flightView" style="display: none;">
-        <div class="ahrs-crosshair">
-            <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
-                <path d="M 30,40 L 85,40" />
-                <path d="M 115,40 L 170,40" />
-                <circle cx="100" cy="40" r="3" stroke-width="0" fill="#fff"/>
-            </svg>
-        </div>
-
-        <div class="hud-top">
-            <div class="hud-heading" id="dispHdg">000°</div>
-            <div class="callsign-row" id="dispCallsign">SEARCHING</div>
-            <div class="aircraft-type" id="dispType">AIRCRAFT TYPE</div>
-        </div>
-
-        <div class="flight-dashboard">
-            <div class="data-block">
-                <div class="data-label">DISTANCE</div>
-                <div class="data-value"><span id="dispDist">0.0</span><span class="unit">MI</span></div>
-                <div style="height: 16px;"></div>
-                <div class="data-label">ALTITUDE</div>
-                <div class="data-value"><span id="dispAlt">0</span><span class="unit">FT</span></div>
-            </div>
-
-            <div class="data-block align-right">
-                <div class="data-label">SPEED</div>
-                <div class="data-value"><span id="dispSpd">0</span><span class="unit">KTS</span></div>
-                <div style="height: 16px;"></div>
-                <div class="data-label">STATUS</div>
-                <div class="data-value" id="dispStatus">CRUISING</div>
-            </div>
-        </div>
-
-        <div class="aircraft-counter" id="aircraftCounter">1 / 1</div>
-        <div class="swipe-indicator" id="swipeIndicator">Swipe to Cycle</div>
+    <div class="start-overlay" id="startScreen">
+        <button class="start-btn" onclick="startApp()">INITIALIZE SYSTEM</button>
     </div>
 
     <script>
-        // === CONFIG ===
         const CONFIG = {
-            AIRCRAFT_API: 'https://api.airplanes.live/v2/point/',
-            POLL_INTERVAL: 5000,
-            CLIMB_THRESHOLD: 500,
-            DESCENT_THRESHOLD: -500,
-            VOICE_RATE: 1.1,
-            VOICE_COOLDOWN: 20000,
-            VOICE_REPEAT_DELAY: 60000
-        };
-
-        // === AIRCRAFT DB ===
-const AIRCRAFT_TYPES = {
-    // Airbus
-    "A20N": "Airbus A320neo", "A19N": "Airbus A319neo", "A21N": "Airbus A321neo",
-    "A319": "Airbus A319", "A320": "Airbus A320", "A321": "Airbus A321",
-    "A332": "Airbus A330-200", "A333": "Airbus A330-300", "A339": "Airbus A330-900neo",
-    "A343": "Airbus A340-300", "A346": "Airbus A340-600", "A359": "Airbus A350-900",
-    "A35K": "Airbus A350-1000", "A388": "Airbus A380", "A306": "Airbus A300-600",
-    "A3ST": "Airbus Beluga", "BCS1": "Airbus A220-100", "BCS3": "Airbus A220-300",
-
-    // Boeing
-    "B38M": "Boeing 737 MAX 8", "B39M": "Boeing 737 MAX 9", "B3XM": "Boeing 737 MAX 10",
-    "B712": "Boeing 717-200", "B737": "Boeing 737-700", "B738": "Boeing 737-800",
-    "B739": "Boeing 737-900", "B733": "Boeing 737-300", "B734": "Boeing 737-400",
-    "B744": "Boeing 747-400", "B748": "Boeing 747-8", "B752": "Boeing 757-200",
-    "B753": "Boeing 757-300", "B762": "Boeing 767-200", "B763": "Boeing 767-300",
-    "B764": "Boeing 767-400", "B772": "Boeing 777-200", "B773": "Boeing 777-300",
-    "B77L": "Boeing 777-200LR", "B77W": "Boeing 777-300ER", "B788": "Boeing 787-8",
-    "B789": "Boeing 787-9", "B78X": "Boeing 787-10", "B7X": "Boeing 787-11", 
-
-    // Embraer
-    "E135": "Embraer ERJ-135", "E145": "Embraer ERJ-145", "E170": "Embraer E170", "E75L": "Embraer E175",
-    "E75S": "Embraer E175", "E190": "Embraer E190", "E195": "Embraer E195", "E290": "Embraer E190-E2",
-    "E295": "Embraer E195-E2", 
-
-    // Bombardier
-    "CRJ1": "Bombardier CRJ-100", "CRJ2": "Bombardier CRJ-200", "CRJ7": "Bombardier CRJ-700",
-    "CRJ9": "Bombardier CRJ-900", "CRJX": "Bombardier CRJ-1000", 
-
-    // ATR
-    "DH8D": "De Havilland Dash 8 Q400", "AT75": "ATR 72-500", "AT76": "ATR 72-600", "AT45": "ATR 42-500", 
-
-    // Cessna
-    "C152": "Cessna 152", "C172": "Cessna 172 Skyhawk", "C182": "Cessna 182 Skylane", "C208": "Cessna 208 Caravan", 
-    "C310": "Cessna 310", "C414": "Cessna 414 Chancellor", "C525": "Cessna CJ", "C56X": "Cessna Excel", 
-    "C680": "Cessna Sovereign", "C750": "Cessna Citation X",
-
-    // Piper
-    "P28A": "Piper PA-28", "PA34": "Piper PA-34", "PA44": "Piper PA-44", 
-
-    // Cirrus
-    "SR20": "Cirrus SR20", "SR22": "Cirrus SR22", "SF50": "Cirrus Vision Jet",
-
-    // Beechcraft
-    "BE36": "Beechcraft Bonanza", "BE58": "Beechcraft Baron", "DA40": "Diamond DA40", "DA42": "Diamond DA42",
-    "BE20": "Beechcraft King Air 200", "B350": "Beechcraft King Air 350", 
-
-    // Pilatus
-    "PC12": "Pilatus PC-12", "PC24": "Pilatus PC-24",
-
-    // Daher
-    "TBM9": "Daher TBM 900",
-
-    // Business Jets
-    "GLF4": "Gulfstream IV", "GLF5": "Gulfstream V", "GLF6": "Gulfstream G650", 
-    "GLEX": "Bombardier Global", "CL30": "Bombardier Challenger 300", 
-    "CL60": "Bombardier Challenger 600", "FA7X": "Dassault Falcon 7X", 
-    "LJ35": "Learjet 35", "LJ45": "Learjet 45", "LJ60": "Learjet 60",
-
-    // Helicopters
-    "HDZB": "HondaJet", "E55P": "Embraer Phenom 300", "E50P": "Embraer Phenom 100", 
-    "R22": "Robinson R22", "R44": "Robinson R44", "R66": "Robinson R66", 
-    "B06": "Bell 206", "B407": "Bell 407", "B429": "Bell 429",
-    "AS50": "Airbus H125", "EC35": "Airbus H135", "EC45": "Airbus H145", 
-    "AW39": "Leonardo AW139", "S76": "Sikorsky S-76", "H60": "Sikorsky Black Hawk", 
-
-    // Military
-    "C130": "C-130 Hercules", "C30J": "C-130J Super Hercules", "C17": "C-17 Globemaster", 
-    "K35R": "KC-135 Stratotanker", "P8": "P-8 Poseidon", "V22": "V-22 Osprey", 
-    "F16": "F-16 Fighting Falcon", "F18": "F/A-18 Hornet", "F22": "F-22 Raptor", 
-    "F35": "F-35 Lightning II", "EUFI": "Eurofighter Typhoon", "T38": "T-38 Talon", 
-    "TEX2": "T-6 Texan II", 
-
-    // Additional Civil Aircraft
-    "C406": "Cessna 406", "C414": "Cessna 414 Chancellor", "C421": "Cessna 421 Golden Eagle",
-    "MD82": "McDonnell Douglas MD-82", "MD83": "McDonnell Douglas MD-83", 
-    "MD11": "McDonnell Douglas MD-11", "DC9": "McDonnell Douglas DC-9", 
-    "DC10": "McDonnell Douglas DC-10", "MD90": "McDonnell Douglas MD-90",
-    "F50": "Fokker 50", "F100": "Fokker 100", "EMB110": "Embraer EMB 110 Bandeirante",
-    "BAe146": "BAe 146", "J31": "Jetstream 31", "J41": "Jetstream 41", "D328": "Dornier 328",
-
-    // Regional Jets and Other
-    "CRJX": "Bombardier CRJ-1000", "E170": "Embraer E170", "E175": "Embraer E175", 
-    "E190": "Embraer E190", "E195": "Embraer E195", "ATR42": "ATR 42",
-    "ATR72": "ATR 72", "A220": "Airbus A220", "A318": "Airbus A318", 
-    "B767": "Boeing 767", "B787": "Boeing 787", "B777": "Boeing 777"
-};
-
-
-        function getAircraftTypeName(typeCode) {
-            if (!typeCode) return "UNKNOWN";
-            if (AIRCRAFT_TYPES[typeCode]) return AIRCRAFT_TYPES[typeCode];
-            if(typeCode.startsWith("B7")) return "Boeing " + typeCode;
-            if(typeCode.startsWith("A3")) return "Airbus " + typeCode;
-            return typeCode;
-        }
-
-        // === STATE ===
-        const dom = {
-            settingsBtn: document.getElementById('settingsBtn'),
-            settingsPanel: document.getElementById('settingsPanel'),
-            closeSettings: document.getElementById('closeSettings'),
-            voiceToggle: document.getElementById('voiceToggle'),
-            radiusSelect: document.getElementById('radiusSelect'),
-            flightView: document.getElementById('flightView'),
-            waitingView: document.getElementById('waitingView'),
-            waitingMsg: document.getElementById('waitingMsg'),
-            startBtn: document.getElementById('startBtn'),
-            touchLayer: document.getElementById('touchLayer'),
-            errorBanner: document.getElementById('errorBanner'),
-            standbyClock: document.getElementById('standbyClock'),
-            idleOverlay: document.getElementById('idleOverlay'),
-            // Data
-            dispCallsign: document.getElementById('dispCallsign'),
-            dispType: document.getElementById('dispType'),
-            dispDist: document.getElementById('dispDist'),
-            dispAlt: document.getElementById('dispAlt'),
-            dispSpd: document.getElementById('dispSpd'),
-            dispHdg: document.getElementById('dispHdg'),
-            dispStatus: document.getElementById('dispStatus'),
-            aircraftCounter: document.getElementById('aircraftCounter'),
-            swipeIndicator: document.getElementById('swipeIndicator')
+            API_PLANES: 'https://api.airplanes.live/v2/point/',
+            API_WX_POINTS: 'https://api.weather.gov/points/',
+            RADAR_TILE_URL: 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png',
+            MAP_TILES: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            POLL_MS: 5000
         };
 
         const state = {
-            geoEnabled: false,
-            userLat: null, userLon: null,
-            searchRadius: 3, // Default 3 miles
-            nearbyPlanes: [],
-            currentPlaneIndex: 0,
-            voiceEnabled: false,
-            fetchInterval: null,
-            lastVoiceCallout: 0,
-            notifiedAircraft: new Map(),
+            lat: null, lon: null,
+            radius: 5,
             map: null,
-            lastTrack: 0,
-            firstFix: false,
-            idleTimer: null
+            userMarker: null,
+            planesData: new Map(),
+            selectedHex: null, 
+            wxInterval: null,
+            planeInterval: null
         };
 
-        // === INIT ===
-        function init() {
-            dom.radiusSelect.value = "3"; 
-            state.searchRadius = 3;
-			initClock(); 
-            initSettings();
-            initWatchdog();
-            setupSwipeControls();
-            setupKeyboardControls();
+        function startApp() {
+            document.getElementById('startScreen').style.display = 'none';
             
-            dom.startBtn.addEventListener('click', startSystem);
-            initMap();
-        }
+            // VOICE WELCOME
+            speak("Initializing system checks. Please standby.");
 
-        function startSystem() {
-            dom.startBtn.style.display = 'none';
-            dom.waitingMsg.style.display = 'block';
-            
-            if('speechSynthesis' in window) {
-                state.voiceEnabled = true;
-                dom.voiceToggle.classList.add('active');
-                speak("Welcome to AirplaneBot. System initializing. Please enjoy.");
-            }
-
-            if(navigator.geolocation) {
-                dom.waitingMsg.textContent = "ACQUIRING LOCATION...";
-                navigator.geolocation.watchPosition(pos => {
-                    state.geoEnabled = true;
-                    state.userLat = pos.coords.latitude;
-                    state.userLon = pos.coords.longitude;
-                    
-                    if(!state.fetchInterval) {
-                        dom.waitingMsg.textContent = `SCANNING ${state.searchRadius} MI RADIUS...`;
-                        fetchNearbyAircraft();
-                        state.fetchInterval = setInterval(fetchNearbyAircraft, CONFIG.POLL_INTERVAL);
-                    }
-                }, err => showError("Location Access Denied"), {enableHighAccuracy:true});
+            initClock();
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    (pos) => {
+                        state.lat = pos.coords.latitude;
+                        state.lon = pos.coords.longitude;
+                        document.getElementById('geoLoc').textContent = `${state.lat.toFixed(4)} N / ${state.lon.toFixed(4)} W`;
+                        if (!state.map) initMap();
+                        else {
+                            if(!state.selectedHex) state.map.jumpTo({ center: [state.lon, state.lat] });
+                            if(state.userMarker) state.userMarker.setLngLat([state.lon, state.lat]);
+                        }
+                        if (!state.planeInterval) {
+                            updateWeather();
+                            fetchPlanes();
+                            state.wxInterval = setInterval(updateWeather, 900000); 
+                            state.planeInterval = setInterval(fetchPlanes, CONFIG.POLL_MS);
+                            requestAnimationFrame(animatePlanes); 
+                        }
+                    }, 
+                    (err) => alert("GPS Required. Please allow access."),
+                    { enableHighAccuracy: true }
+                );
             } else {
-                showError("Geolocation Not Supported");
+                alert("GPS Not Supported");
             }
         }
-       function initSettings() {
-            dom.settingsBtn.addEventListener('click', () => dom.settingsPanel.classList.add('open'));
-            dom.closeSettings.addEventListener('click', () => dom.settingsPanel.classList.remove('open'));
-            
-            dom.radiusSelect.addEventListener('change', e => {
-                state.searchRadius = parseInt(e.target.value);
-                state.firstFix = false; 
-                dom.waitingMsg.textContent = `SCANNING ${state.searchRadius} MI RADIUS...`;
-                fetchNearbyAircraft();
-            });
 
-            dom.voiceToggle.addEventListener('click', () => {
-                state.voiceEnabled = !state.voiceEnabled;
-                dom.voiceToggle.classList.toggle('active', state.voiceEnabled);
-                if(state.voiceEnabled) {
-                    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-                    speak("Voice Active");
-                }
-            });
+        function initClock() {
+            const update = () => {
+                const now = new Date();
+                const h = now.getHours().toString().padStart(2, '0');
+                const m = now.getMinutes().toString().padStart(2, '0');
+                document.getElementById('clockTime').textContent = `${h}:${m}`;
+                const opts = { weekday: 'long', month: 'short', day: 'numeric' };
+                document.getElementById('clockDate').textContent = now.toLocaleDateString('en-US', opts);
+            };
+            setInterval(update, 1000);
+            update();
         }
-        // === MAP ENGINE (FLAT SATELLITE ONLY) ===
+
         function initMap() {
             try {
                 state.map = new maplibregl.Map({
@@ -578,261 +300,338 @@ const AIRCRAFT_TYPES = {
                     style: {
                         version: 8,
                         sources: {
-                            // ONLY Esri Satellite
-                            'satellite': {
-                                type: 'raster',
-                                tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                                tileSize: 256, 
-                                attribution: '&copy; Esri'
-                            }
+                            'osm': { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256 }
                         },
-                        layers: [{ id: 'sat', type: 'raster', source: 'satellite', paint: {'raster-opacity': 1}}],
-                        sky: {
-                            'sky-color': '#050510', 
-                            'sky-horizon-blend': 0.3,
-                            'horizon-color': '#0a2a4a', 
-                            'fog-color': '#0a2a4a',
-                            'fog-ground-blend': 0.6,
-                            'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 12, 0]
-                        }
+                        layers: [
+                            { id: 'osm-layer', type: 'raster', source: 'osm' }
+                        ],
+                        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf"
                     },
-                    center: [-74.006, 40.7128], zoom: 12, pitch: 85, maxPitch: 85, interactive: false
+                    center: [state.lon, state.lat],
+                    zoom: getZoomForRadius(state.radius),
+                    attributionControl: false,
+                    interactive: true
                 });
 
                 state.map.on('load', () => {
-                    // Dark Mode Sky
-                    state.map.setSky({ 
-                        'sky-color': '#050510', 
-                        'horizon-color': '#0a1a2a', 
-                        'fog-color': '#0a1a2a' 
+                    state.map.addSource('radar', {
+                        type: 'raster',
+                        tiles: [CONFIG.RADAR_TILE_URL],
+                        tileSize: 256
                     });
                     
-                    let bearing = 0;
-                    function frame() {
-                        if(!state.map || state.nearbyPlanes.length > 0) return;
-                        bearing += 0.05; 
-                        state.map.setBearing(bearing);
-                        requestAnimationFrame(frame);
-                    }
-                    frame();
+                    state.map.addLayer({
+                        id: 'radar-layer',
+                        type: 'raster',
+                        source: 'radar',
+                        paint: { 'raster-opacity': 0.5, 'raster-fade-duration': 0 }
+                    });
+
+                    // --- 1. DRAW PLANE ICON (PRE-INVERTED FOR FILTER) ---
+                    const width = 64, height = 64;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.font = 'bold 50px sans-serif';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#000000'; // Black -> white after invert -> cream after other filters
+                    ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 2;
+                    ctx.translate(width/2, height/2); ctx.rotate(-90 * Math.PI / 180); 
+                    ctx.fillText('✈', 0, 2.4); 
+                    state.map.addImage('plane-icon', ctx.getImageData(0,0,width,height));
+
+                    // --- 2. INFO BOX ICON (PRE-INVERTED FOR FILTER) ---
+                    const tW=100, tH=60;
+                    const tCan = document.createElement('canvas');
+                    tCan.width = tW; tCan.height = tH;
+                    const tCtx = tCan.getContext('2d');
+                    
+                    // Purple line -> becomes lime after filter
+                    tCtx.beginPath(); tCtx.moveTo(50,0); tCtx.lineTo(50,20);
+                    tCtx.strokeStyle='#573da9'; // Purple -> lime
+                    tCtx.lineWidth=2; tCtx.stroke();
+                    
+                    // Light box -> becomes dark after filter
+                    tCtx.fillStyle='rgba(245,245,235,0.95)'; // Light -> dark
+                    tCtx.strokeStyle='#573da9'; // Purple -> lime
+                    tCtx.lineWidth=1.5;
+                    const x=5, y=20, w=90, h=35, r=4;
+                    tCtx.beginPath();
+                    tCtx.moveTo(x+r, y); tCtx.arcTo(x+w, y, x+w, y+h, r);
+                    tCtx.arcTo(x+w, y+h, x, y+h, r); tCtx.arcTo(x, y+h, x, y, r);
+                    tCtx.arcTo(x, y, x+w, y, r); tCtx.closePath();
+                    tCtx.fill(); tCtx.stroke();
+                    state.map.addImage('tag-bg', tCtx.getImageData(0,0,tW,tH));
+                    
+                    // --- LAYERS ---
+                    state.map.addSource('planes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+                    state.map.addSource('flight-paths', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+
+                    state.map.addLayer({
+                        'id': 'flight-paths-layer', 'type': 'line', 'source': 'flight-paths',
+                        'layout': { 'line-join': 'round', 'line-cap': 'round' },
+                        'paint': { 
+                            'line-color': '#000000', // Black -> white after invert -> cream after other filters
+                            'line-width': 2, 
+                            'line-opacity': 0.5, 
+                            'line-dasharray': [2, 4] 
+                        }
+                    });
+
+                    state.map.addLayer({
+                        'id': 'planes-layer', 'type': 'symbol', 'source': 'planes',
+                        'layout': {
+                            'icon-image': 'plane-icon', 'icon-size': 1,
+                            'icon-allow-overlap': true, 'icon-ignore-placement': true,
+                            'icon-rotate': ['get', 'rotation'], 'icon-rotation-alignment': 'map'
+                        },
+                        'paint': {
+                            'icon-opacity': 0.8// Matches the 80 (50% hex) in #f1f8e980
+                        }
+                    });
+
+                    state.map.addLayer({
+                        'id': 'info-tags', 'type': 'symbol', 'source': 'planes',
+                        'layout': {
+                            'icon-image': 'tag-bg', 'icon-anchor': 'top', 'icon-offset': [0, 0],
+                            'icon-allow-overlap': true, 'icon-ignore-placement': true,
+                            'text-field': [
+                                'format',
+                                ['get', 'callsign'], { 'font-scale': 0.8 }, '\n',
+                                ['get', 'desc'], { 'font-scale': 0.7, 'text-color': '#573da9' } // Purple -> lime
+                            ],
+                            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                            'text-anchor': 'top', 'text-offset': [0, 2.2],
+                            'text-color': '#0e0716', // Dark -> light cream
+                            'text-allow-overlap': true, 'text-ignore-placement': true
+                        }
+                    });
+
+                    state.map.on('click', 'planes-layer', (e) => {
+                        if (e.features.length > 0) selectTarget(e.features[0].properties.hex);
+                    });
+                    state.map.on('click', 'info-tags', (e) => {
+                        if (e.features.length > 0) selectTarget(e.features[0].properties.hex);
+                    });
+                    state.map.on('mouseenter', 'planes-layer', () => { state.map.getCanvas().style.cursor = 'pointer'; });
+                    state.map.on('mouseleave', 'planes-layer', () => { state.map.getCanvas().style.cursor = ''; });
                 });
-            } catch(e) {
-                console.error("Map Error:", e);
-            }
+
+                const el = document.createElement('div');
+                el.className = 'user-marker';
+                state.userMarker = new maplibregl.Marker({ element: el })
+                    .setLngLat([state.lon, state.lat])
+                    .addTo(state.map);
+
+            } catch (e) { console.error(e); }
         }
 
-        // === LOGIC ===
-        async function fetchNearbyAircraft() {
-            if(!state.geoEnabled) return;
+        async function fetchPlanes() {
+            if (!state.lat) return;
             try {
-                const res = await fetch(`${CONFIG.AIRCRAFT_API}${state.userLat}/${state.userLon}/${state.searchRadius}`);
-                const json = await res.json();
-                
-                if(json.ac && json.ac.length > 0) {
-                    state.nearbyPlanes = json.ac
-                        .filter(p => p.lat && p.lon)
-                        .map(p => ({...p, distance: calculateDistance(state.userLat, state.userLon, p.lat, p.lon)}))
-                        .sort((a, b) => a.distance - b.distance);
-                    
-                    if(state.currentPlaneIndex >= state.nearbyPlanes.length) state.currentPlaneIndex = 0;
-                    
-                    if(!state.firstFix) {
-                        state.firstFix = true;
-                        updateDisplay(true); // Force INSTANT Snap on first load
-                    } else {
-                        updateDisplay(false); // Smooth Glide on tracking
+                const url = `${CONFIG.API_PLANES}${state.lat}/${state.lon}/${state.radius}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const now = Date.now();
+                const activeHexes = new Set();
+
+                if (data.ac) {
+                    data.ac.forEach(p => {
+                        if (!p.lat || !p.lon) return;
+                        activeHexes.add(p.hex);
+                        let pData = state.planesData.get(p.hex);
+                        const speedKmh = (p.gs || 0) * 1.852;
+                        const distanceIn5s = speedKmh * (5.5 / 3600); 
+                        const projected = getProjectedPoint(p.lat, p.lon, p.track || 0, distanceIn5s);
+
+                        if (pData) {
+                            pData.startLat = pData.currentLat;
+                            pData.startLon = pData.currentLon;
+                            pData.targetLat = projected[1];
+                            pData.targetLon = projected[0];
+                            pData.startTime = now;
+                            pData.alt_baro = p.alt_baro;
+                            pData.gs = p.gs;
+                            pData.track = p.track;
+                            pData.flight = p.flight;
+                            pData.t = p.t;
+                            pData.baro_rate = p.baro_rate; // Store for Phase logic
+                        } else {
+                            pData = {
+                                ...p,
+                                currentLat: p.lat, currentLon: p.lon,
+                                startLat: p.lat, startLon: p.lon,
+                                targetLat: projected[1], targetLon: projected[0],
+                                startTime: now
+                            };
+                            state.planesData.set(p.hex, pData);
+                        }
+                    });
+                }
+                document.getElementById('planeCountStatus').textContent = `${activeHexes.size} ACTIVE TARGETS`;
+                for (let [hex, data] of state.planesData) {
+                    if (!activeHexes.has(hex)) {
+                        state.planesData.delete(hex);
+                        if(state.selectedHex === hex) closeTarget();
                     }
+                }
+            } catch (e) { console.error("Plane error", e); }
+        }
+
+        function animatePlanes() {
+            if (!state.map || !state.map.getSource('planes')) {
+                requestAnimationFrame(animatePlanes);
+                return;
+            }
+            const now = Date.now();
+            const duration = 5000; 
+            const planeFeatures = [];
+            const pathFeatures = [];
+
+            state.planesData.forEach((p, hex) => {
+                const elapsed = now - p.startTime;
+                let progress = elapsed / duration;
+                if (progress > 1) progress = 1;
+
+                p.currentLat = p.startLat + (p.targetLat - p.startLat) * progress;
+                p.currentLon = p.startLon + (p.targetLon - p.startLon) * progress;
+
+                // Format Tag Data
+                const callsign = p.flight ? p.flight.trim() : p.hex;
+                const alt = p.alt_baro === 'ground' ? 'GND' : Math.round(p.alt_baro/100)*100;
+                const spd = Math.round(p.gs || 0);
+                const desc = `${alt}ft ${spd}kt`;
+
+                // 1. Plane
+                planeFeatures.push({
+                    'type': 'Feature',
+                    'geometry': { 'type': 'Point', 'coordinates': [p.currentLon, p.currentLat] },
+                    'properties': { 
+                        'hex': hex, 
+                        'rotation': p.track || 0,
+                        'callsign': callsign,
+                        'desc': desc
+                    }
+                });
+
+                // 2. Path (ONLY IF NOT GROUND)
+                if (p.alt_baro !== 'ground') {
+                    const speedKmh = (p.gs || 0) * 1.852;
+                    const dist2Min = speedKmh * (2 / 60); 
+                    const futurePos = getProjectedPoint(p.currentLat, p.currentLon, p.track || 0, dist2Min);
                     
-                    handleAudio(state.nearbyPlanes);
-                } else {
-                    state.nearbyPlanes = [];
-                    dom.flightView.style.display = 'none';
-                    dom.waitingView.style.display = 'flex';
-                    if(dom.startBtn.style.display === 'none') dom.waitingMsg.textContent = "NO AIRCRAFT FOUND. EXPAND RADIUS.";
-                    state.firstFix = false;
+                    pathFeatures.push({
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': [[p.currentLon, p.currentLat], [futurePos[0], futurePos[1]]]
+                        }
+                    });
                 }
-            } catch(e) { console.log(e); }
-        }
 
-        function updateDisplay(immediate = false) {
-            if(!state.nearbyPlanes.length) return;
-            const p = state.nearbyPlanes[state.currentPlaneIndex];
-            
-            dom.waitingView.style.display = 'none';
-            dom.flightView.style.display = 'block';
-
-            dom.dispCallsign.textContent = p.flight ? p.flight.trim() : (p.r || p.hex);
-            dom.dispType.textContent = getAircraftTypeName(p.t);
-            dom.dispDist.textContent = p.distance.toFixed(1);
-            dom.dispAlt.textContent = p.alt_baro === 'ground' ? 'GND' : Math.round(p.alt_baro);
-            dom.dispSpd.textContent = Math.round(p.gs || 0);
-            dom.dispHdg.textContent = Math.round(p.track || 0).toString().padStart(3,'0') + '°';
-            
-            let status = "CRUISING";
-            const vrate = p.baro_rate || 0;
-            if(p.alt_baro === "ground") status = "TAXI";
-            else if(vrate > CONFIG.CLIMB_THRESHOLD) status = "CLIMBING";
-            else if(vrate < CONFIG.DESCENT_THRESHOLD) status = "DESCENDING";
-            dom.dispStatus.textContent = status;
-            
-            dom.aircraftCounter.textContent = `${state.currentPlaneIndex + 1} / ${state.nearbyPlanes.length}`;
-
-            // Banking
-            let bankAngle = 0;
-            if(state.lastTrack !== undefined && !immediate) {
-                let diff = (p.track || 0) - state.lastTrack;
-                if(diff > 180) diff -= 360; if(diff < -180) diff += 360;
-                bankAngle = Math.max(-45, Math.min(45, diff * 5));
-            }
-            state.lastTrack = p.track || 0;
-            document.querySelector('.ahrs-crosshair').style.transform = `translate(-50%,-50%) rotate(${bankAngle}deg)`;
-
-            // Camera
-            if(state.map) {
-                const alt = p.alt_baro === 'ground' ? 0 : p.alt_baro;
-                const zoom = getSmartZoom(alt);
-                const target = getProjectedPoint(p.lat, p.lon, p.track || 0, getLookAheadDistance(zoom));
-                
-                const cam = { center: target, zoom: zoom, bearing: p.track || 0, pitch: 85 };
-                
-                if(immediate) {
-                    state.map.stop(); // Stop any flying animation
-                    state.map.jumpTo(cam); // INSTANT SNAP
-                } else {
-                    state.map.jumpTo({...cam, duration: CONFIG.POLL_INTERVAL, easing: t => t});
+                if (state.selectedHex === hex) {
+                    const dist = calcDist(state.lat, state.lon, p.currentLat, p.currentLon);
+                    document.getElementById('tDist').textContent = dist.toFixed(2);
                 }
-            }
+            });
+
+            state.map.getSource('planes').setData({ 'type': 'FeatureCollection', 'features': planeFeatures });
+            state.map.getSource('flight-paths').setData({ 'type': 'FeatureCollection', 'features': pathFeatures });
+
+            requestAnimationFrame(animatePlanes);
         }
 
-        // === HELPERS ===
-        function getSmartZoom(alt) {
-            if(alt < 1000) return 16;
-            if(alt < 5000) return 14.5;
-            if(alt < 15000) return 12.5;
-            return 10.5;
-        }
-        function getLookAheadDistance(zoom) {
-            if(zoom > 15) return 0.6;
-            if(zoom > 12) return 3.0;
-            return 8.0;
-        }
-        function getProjectedPoint(lat, lon, bear, dist) {
-            const R = 6371, d = dist/R;
-            const rLat = lat * Math.PI/180, rLon = lon * Math.PI/180, rBear = bear * Math.PI/180;
-            const nLat = Math.asin(Math.sin(rLat)*Math.cos(d) + Math.cos(rLat)*Math.sin(d)*Math.cos(rBear));
-            const nLon = rLon + Math.atan2(Math.sin(rBear)*Math.sin(d)*Math.cos(rLat), Math.cos(d)-Math.sin(rLat)*Math.sin(nLat));
-            return [nLon * 180/Math.PI, nLat * 180/Math.PI];
-        }
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 3958.8;
-            const dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
-            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        }
-        function getCardinalDirection(a) {
-            return ['N','NE','E','SE','S','SW','W','NW'][Math.round(((a%=360)<0?a+360:a)/45)%8];
-        }
-        function calculateBearing(lat1, lon1, lat2, lon2) {
-            const y = Math.sin((lon2-lon1)*Math.PI/180) * Math.cos(lat2*Math.PI/180);
-            const x = Math.cos(lat1*Math.PI/180)*Math.sin(lat2*Math.PI/180) - Math.sin(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.cos((lon2-lon1)*Math.PI/180);
-            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        function selectTarget(hex) {
+            const p = state.planesData.get(hex);
+            if(!p) return;
+            state.selectedHex = hex;
+            document.getElementById('targetCard').classList.add('active');
+            if(state.map) state.map.flyTo({ center: [p.currentLon, p.currentLat], zoom: 13, speed: 1.2 });
+            document.getElementById('tCall').textContent = p.flight ? p.flight.trim() : p.hex;
+            document.getElementById('tType').textContent = p.t || "UNKNOWN";
+            document.getElementById('tAlt').textContent = p.alt_baro === 'ground' ? 'GND' : p.alt_baro;
+            document.getElementById('tSpd').textContent = Math.round(p.gs || 0);
+            document.getElementById('tHdg').textContent = Math.round(p.track || 0).toString().padStart(3,'0');
+            
+            const phase = getFlightPhase(p);
+            document.getElementById('tPhase').textContent = phase;
+
+            announce(p, phase);
         }
 
-        // === AUDIO ===
-        function handleAudio(planes) {
-            if(!state.voiceEnabled || !planes.length) return;
-            const now = Date.now();
-            if(state.notifiedAircraft.size > 100) {
-                const cutoff = now - 600000; 
-                for(let [hex, time] of state.notifiedAircraft) {
-                    if(time < cutoff) state.notifiedAircraft.delete(hex);
-                }
-            }
-            const p = planes[0];
-            const last = state.notifiedAircraft.get(p.hex) || 0;
-            if(now - last > CONFIG.VOICE_REPEAT_DELAY) {
-                state.notifiedAircraft.set(p.hex, now);
-                announceAircraft(p);
-            }
+        function closeTarget() {
+            state.selectedHex = null;
+            document.getElementById('targetCard').classList.remove('active');
+            if(state.map) state.map.flyTo({ center: [state.lon, state.lat], zoom: getZoomForRadius(state.radius) });
         }
-        function announceAircraft(p, force=false) {
-            const now = Date.now();
-            if(!force && now - state.lastVoiceCallout < CONFIG.VOICE_COOLDOWN) return;
-            state.lastVoiceCallout = now;
-            const bear = calculateBearing(state.userLat, state.userLon, p.lat, p.lon);
-            const clock = Math.round((((bear + 15) % 360) / 30)) || 12;
-            const call = (p.flight || "Target").split('').join(' ');
-            const status = p.alt_baro === 'ground' ? 'Taxiing' : (p.baro_rate > CONFIG.CLIMB_THRESHOLD ? 'Climbing' : 'Descending');
-            speak(`${getAircraftTypeName(p.t)}, ${Math.round(p.distance)} miles, ${clock} o'clock. Callsign ${call}, ${status}.`);
+
+        function getFlightPhase(p) {
+            if (p.alt_baro === 'ground') return 'TAXIING';
+            const rate = p.baro_rate || 0;
+            if (rate > 500) return 'CLIMBING';
+            if (rate < -500) return 'DESCENDING';
+            return 'CRUISING';
         }
+
         function speak(text) {
-            if (!window.speechSynthesis) return;
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(text);
-            u.rate = CONFIG.VOICE_RATE; 
+            u.rate = 1.1;
             window.speechSynthesis.speak(u);
         }
 
-        // === CONTROLS ===
-        function cycleAircraft(dir) {
-            if(state.nearbyPlanes.length <= 1) return;
-            state.currentPlaneIndex += dir;
-            if(state.currentPlaneIndex < 0) state.currentPlaneIndex = state.nearbyPlanes.length - 1;
-            if(state.currentPlaneIndex >= state.nearbyPlanes.length) state.currentPlaneIndex = 0;
-            
-            updateDisplay(true); // Force Instant Jump on user action
-            
-            if(state.voiceEnabled) announceAircraft(state.nearbyPlanes[state.currentPlaneIndex], true);
-        }
-        function setupSwipeControls() {
-            let x = 0;
-            dom.touchLayer.addEventListener('touchstart', e => x = e.changedTouches[0].screenX);
-            dom.touchLayer.addEventListener('touchend', e => {
-                if(Math.abs(x - e.changedTouches[0].screenX) > 50) cycleAircraft(x > e.changedTouches[0].screenX ? 1 : -1);
-            });
-        }
-        function setupKeyboardControls() {
-            document.addEventListener('keydown', e => {
-                if(e.key === 'ArrowLeft') cycleAircraft(-1);
-                if(e.key === 'ArrowRight') cycleAircraft(1);
-            });
+        function announce(p, phase) {
+            const call = (p.flight || "Target").split('').join(' ');
+            const dist = Math.round(calcDist(state.lat, state.lon, p.currentLat, p.currentLon));
+            speak(`Callsign ${call}. ${dist} miles. ${phase}.`);
         }
 
-        // === UTILS ===
-        function initClock() { 
-            setInterval(() => {
-                const d = new Date();
-                dom.standbyClock.textContent = d.toLocaleTimeString([], {
-                    hour: 'numeric', 
-                    minute: '2-digit',
-					second: '2-digit'
-                });
-            }, 1000); 
-        }
-        function initWatchdog() {
-            const reset = () => {
-                clearTimeout(state.idleTimer);
-                dom.idleOverlay.classList.remove('active');
-                if(!state.fetchInterval && state.geoEnabled) {
-                    fetchNearbyAircraft();
-                    state.fetchInterval = setInterval(fetchNearbyAircraft, CONFIG.POLL_INTERVAL);
-                }
-                state.idleTimer = setTimeout(() => {
-                    dom.idleOverlay.classList.add('active');
-                    clearInterval(state.fetchInterval); state.fetchInterval = null;
-                }, 120000);
-            };
-            ['mousemove','mousedown','touchstart'].forEach(e => document.addEventListener(e, reset, {passive:true}));
-            reset();
-        }
-        window.wakeUp = initWatchdog;
-        function showError(msg) {
-            dom.errorBanner.textContent = msg;
-            dom.errorBanner.classList.add('visible');
-            setTimeout(() => dom.errorBanner.classList.remove('visible'), 5000);
+        function updateWeather() {
+            if (!state.lat) return;
+            fetch(`${CONFIG.API_WX_POINTS}${state.lat},${state.lon}`)
+                .then(r => r.json())
+                .then(d => fetch(d.properties.observationStations))
+                .then(r => r.json())
+                .then(d => fetch(d.features[0].id + '/observations/latest'))
+                .then(r => r.json())
+                .then(d => {
+                    const p = d.properties;
+                    const tempF = Math.round((p.temperature.value * 9/5) + 32);
+                    const wind = Math.round(p.windSpeed.value * 0.539957);
+                    document.getElementById('wxTemp').textContent = `${tempF}°`;
+                    document.getElementById('wxCond').textContent = (p.textDescription || "Clear").toUpperCase();
+                    document.getElementById('wxWind').textContent = wind;
+                }).catch(e => console.log("WX Error"));
         }
 
-        window.addEventListener('DOMContentLoaded', init);
+        function setRadius(r) {
+            state.radius = r;
+            document.querySelectorAll('.radius-opt').forEach(el => el.classList.remove('selected'));
+            fetchPlanes();
+            if(state.map) state.map.setZoom(getZoomForRadius(r));
+            toggleSettings();
+        }
+        function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('open'); }
+        function getZoomForRadius(r) { if(r<=3) return 13; if(r<=5) return 12; if(r<=10) return 11; return 9; }
+        
+        function getProjectedPoint(lat, lon, bear, distKm) {
+            const R = 6371; 
+            const d = distKm / R;
+            const rLat = lat * Math.PI / 180;
+            const rLon = lon * Math.PI / 180;
+            const rBear = bear * Math.PI / 180;
+            const nLat = Math.asin(Math.sin(rLat) * Math.cos(d) + Math.cos(rLat) * Math.sin(d) * Math.cos(rBear));
+            const nLon = rLon + Math.atan2(Math.sin(rBear) * Math.sin(d) * Math.cos(rLat), Math.cos(d) - Math.sin(rLat) * Math.sin(nLat));
+            return [nLon * 180 / Math.PI, nLat * 180 / Math.PI];
+        }
+        function calcDist(lat1, lon1, lat2, lon2) {
+            const R = 3958.8;
+            const dLat = (lat2-lat1)*Math.PI/180;
+            const dLon = (lon2-lon1)*Math.PI/180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+        document.getElementById('settingsBtn').onclick = toggleSettings;
     </script>
 </body>
 </html>
