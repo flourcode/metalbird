@@ -70,17 +70,16 @@
         .plane-count { font-size: clamp(10px, 1.5vw, 14px); color: #a8c256; margin-top: 6px; }
 
         /* CORNER: BOTTOM RIGHT (Settings) */
-        .hud-br { align-self: end; justify-self: end; pointer-events: auto; display: flex; gap: 12px; }
-        .settings-btn, .scanner-btn {
+        .hud-br { align-self: end; justify-self: end; pointer-events: auto; }
+        .settings-btn {
             width: 44px; height: 44px; border-radius: 50%;
             background: rgba(255,255,255,0.15); color: #fff;
             border: 1px solid rgba(255,255,255,0.2);
             backdrop-filter: blur(10px);
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: transform 0.2s;
-            font-size: 20px;
         }
-        .settings-btn:active, .scanner-btn:active { transform: scale(0.9); background: #fff; color: #000; }
+        .settings-btn:active { transform: scale(0.9); background: #fff; color: #000; }
 
         /* === TARGET DATA CARD (CENTER) === */
         .target-card {
@@ -131,13 +130,133 @@
 
         /* === SETTINGS PANEL === */
         .settings-panel {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
-            z-index: 300; display: none; align-items: center; justify-content: center;
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            max-width: 90vw;
+            height: 100vh;
+            background: rgba(10, 10, 10, 0.98);
+            backdrop-filter: blur(20px);
+            z-index: 300;
+            transition: right 0.3s ease;
+            border-left: 1px solid rgba(168,194,86,0.3);
+            overflow-y: auto;
         }
-        .settings-panel.open { display: flex; }
-        .radius-opt { padding: 16px; font-size: 24px; color: #555; cursor: pointer; transition: 0.2s; }
-        .radius-opt:hover { color: #fff; }
-        .radius-opt.selected { color: #a8c256; font-weight: 700; transform: scale(1.1); }
+        .settings-panel.open { right: 0; }
+        
+        .settings-header {
+            padding: 24px;
+            border-bottom: 1px solid rgba(168,194,86,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .settings-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #a8c256;
+            letter-spacing: 2px;
+        }
+        .settings-close {
+            background: none;
+            border: 1px solid rgba(168,194,86,0.5);
+            color: #a8c256;
+            padding: 8px 16px;
+            font-family: 'Space Mono';
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            letter-spacing: 1px;
+        }
+        .settings-close:hover {
+            background: rgba(168,194,86,0.1);
+        }
+        
+        .settings-section {
+            padding: 24px;
+            border-bottom: 1px solid rgba(168,194,86,0.1);
+        }
+        .settings-section-title {
+            font-size: 11px;
+            color: #888;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        
+        .setting-option {
+            padding: 14px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            color: #f1f8e980;
+        }
+        .setting-option:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(168,194,86,0.3);
+        }
+        .setting-option.selected {
+            background: rgba(168,194,86,0.15);
+            border-color: #a8c256;
+            color: #a8c256;
+            font-weight: 700;
+        }
+        
+        .toggle-switch {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        .toggle-label {
+            font-size: 14px;
+            color: #f1f8e980;
+        }
+        .toggle-btn {
+            width: 50px;
+            height: 26px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .toggle-btn.active {
+            background: #a8c256;
+        }
+        .toggle-knob {
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: left 0.3s;
+        }
+        .toggle-btn.active .toggle-knob {
+            left: 27px;
+        }
+        
+        .settings-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 299;
+            display: none;
+        }
+        .settings-overlay.open {
+            display: block;
+        }
 
         /* === START SCREEN === */
         .start-overlay {
@@ -148,147 +267,6 @@
             background: #f1f8e980; color: #000; border: none;
             padding: 20px 40px; font-family: 'Space Mono'; font-weight: 700;
             font-size: 18px; cursor: pointer; border-radius: 30px;
-        }
-
-        /* === SKY SCANNER MODE === */
-        .scanner-mode {
-            position: fixed; inset: 0; z-index: 400; background: #000;
-            display: none; flex-direction: column;
-        }
-        .scanner-mode.active { display: flex; }
-        
-        .scanner-header {
-            padding: 20px;
-            background: rgba(10,10,10,0.95);
-            border-bottom: 1px solid rgba(168,194,86,0.3);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .scanner-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #a8c256;
-            letter-spacing: 2px;
-        }
-        .scanner-close {
-            background: none;
-            border: 1px solid #a8c256;
-            color: #a8c256;
-            padding: 8px 16px;
-            font-family: 'Space Mono';
-            font-size: 12px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        
-        .scanner-compass {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .compass-ring {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80vmin;
-            height: 80vmin;
-            border: 2px solid rgba(168,194,86,0.3);
-            border-radius: 50%;
-        }
-        
-        .compass-center {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            background: #a8c256;
-            border-radius: 50%;
-            box-shadow: 0 0 20px rgba(168,194,86,0.5);
-        }
-        
-        .compass-direction {
-            position: absolute;
-            font-size: 14px;
-            font-weight: 700;
-            color: #f1f8e980;
-            letter-spacing: 1px;
-        }
-        
-        .scanner-plane {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            cursor: pointer;
-            transition: transform 0.3s;
-        }
-        
-        .scanner-plane-icon {
-            width: 40px;
-            height: 40px;
-            background: rgba(168,194,86,0.3);
-            border: 2px solid #a8c256;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            position: relative;
-        }
-        
-        .scanner-plane:hover .scanner-plane-icon {
-            background: rgba(168,194,86,0.6);
-            transform: scale(1.2);
-        }
-        
-        .scanner-plane-label {
-            position: absolute;
-            top: -30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(10,10,10,0.9);
-            padding: 4px 8px;
-            border-radius: 4px;
-            white-space: nowrap;
-            font-size: 11px;
-            color: #a8c256;
-            border: 1px solid rgba(168,194,86,0.5);
-        }
-        
-        .scanner-elevation {
-            position: absolute;
-            top: 45px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 10px;
-            color: #f1f8e980;
-            background: rgba(0,0,0,0.8);
-            padding: 2px 6px;
-            border-radius: 3px;
-        }
-        
-        .scanner-info {
-            padding: 20px;
-            background: rgba(10,10,10,0.95);
-            border-top: 1px solid rgba(168,194,86,0.3);
-            text-align: center;
-        }
-        
-        .scanner-heading {
-            font-size: 48px;
-            font-weight: 700;
-            color: #a8c256;
-            margin-bottom: 8px;
-        }
-        
-        .scanner-instruction {
-            font-size: 12px;
-            color: #f1f8e980;
-            opacity: 0.7;
         }
     </style>
 </head>
@@ -313,7 +291,6 @@
             <div class="plane-count" id="planeCountStatus">RADAR OFFLINE</div>
         </div>
         <div class="hud-br">
-            <button class="scanner-btn" id="scannerBtn">📡</button>
             <button class="settings-btn" id="settingsBtn">⋯</button>
         </div>
     </div>
@@ -353,38 +330,77 @@
         <button class="close-target" onclick="closeTarget()">RETURN TO MAP</button>
     </div>
 
+    <div class="settings-overlay" id="settingsOverlay" onclick="toggleSettings()"></div>
+    
     <div class="settings-panel" id="settingsPanel">
-        <div style="text-align:center;">
-            <div style="color:#888; margin-bottom:30px; font-size: 12px; letter-spacing: 2px;">RADAR RANGE</div>
-            <div class="radius-opt" onclick="setRadius(3)">3 MILES</div>
-            <div class="radius-opt" onclick="setRadius(5)">5 MILES</div>
-            <div class="radius-opt" onclick="setRadius(10)">10 MILES</div>
-            <div class="radius-opt" onclick="setRadius(25)">25 MILES</div>
-            <button onclick="toggleSettings()" style="margin-top:50px; background:none; border:1px solid #333; color:#fff; padding:12px 32px; cursor:pointer; border-radius: 30px;">CLOSE</button>
+        <div class="settings-header">
+            <div class="settings-title">SETTINGS</div>
+            <button class="settings-close" onclick="toggleSettings()">CLOSE</button>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-section-title">Location Source</div>
+            <div class="setting-option selected" id="optGeo" onclick="selectLocationSource('geo')">
+                MY LOCATION (GPS)
+            </div>
+            <div class="setting-option" id="optJFK" onclick="selectLocationSource('JFK')">
+                JFK - NEW YORK
+            </div>
+            <div class="setting-option" id="optSEA" onclick="selectLocationSource('SEA')">
+                SEA - SEATTLE
+            </div>
+            <div class="setting-option" id="optGEG" onclick="selectLocationSource('GEG')">
+                GEG - SPOKANE
+            </div>
+            <div class="setting-option" id="optATL" onclick="selectLocationSource('ATL')">
+                ATL - ATLANTA
+            </div>
+            <div class="setting-option" id="optMIA" onclick="selectLocationSource('MIA')">
+                MIA - MIAMI
+            </div>
+            <div class="setting-option" id="optDEN" onclick="selectLocationSource('DEN')">
+                DEN - DENVER
+            </div>
+            <div class="setting-option" id="optORD" onclick="selectLocationSource('ORD')">
+                ORD - CHICAGO
+            </div>
+            <div class="setting-option" id="optLAX" onclick="selectLocationSource('LAX')">
+                LAX - LOS ANGELES
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-section-title">Radar Range</div>
+            <div class="setting-option" id="optR3" onclick="selectRadius(3)">
+                3 MILES
+            </div>
+            <div class="setting-option selected" id="optR5" onclick="selectRadius(5)">
+                5 MILES
+            </div>
+            <div class="setting-option" id="optR10" onclick="selectRadius(10)">
+                10 MILES
+            </div>
+            <div class="setting-option" id="optR20" onclick="selectRadius(20)">
+                20 MILES
+            </div>
+            <div class="setting-option" id="optR25" onclick="selectRadius(25)">
+                25 MILES
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-section-title">Display Options</div>
+            <div class="toggle-switch">
+                <div class="toggle-label">Weather Radar</div>
+                <div class="toggle-btn active" id="radarToggle" onclick="toggleRadar()">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="start-overlay" id="startScreen">
         <button class="start-btn" onclick="startApp()">INITIALIZE SYSTEM</button>
-    </div>
-
-    <div class="scanner-mode" id="scannerMode">
-        <div class="scanner-header">
-            <div class="scanner-title">SKY SCANNER</div>
-            <button class="scanner-close" onclick="closeSkyScanner()">CLOSE</button>
-        </div>
-        <div class="scanner-compass" id="scannerCompass">
-            <div class="compass-ring"></div>
-            <div class="compass-center"></div>
-            <div class="compass-direction" style="top: 5%; left: 50%; transform: translateX(-50%);">N</div>
-            <div class="compass-direction" style="bottom: 5%; left: 50%; transform: translateX(-50%);">S</div>
-            <div class="compass-direction" style="top: 50%; right: 5%; transform: translateY(-50%);">E</div>
-            <div class="compass-direction" style="top: 50%; left: 5%; transform: translateY(-50%);">W</div>
-        </div>
-        <div class="scanner-info">
-            <div class="scanner-heading" id="scannerHeading">---°</div>
-            <div class="scanner-instruction">POINT YOUR DEVICE TOWARD A PLANE</div>
-        </div>
     </div>
 
     <script>
@@ -405,7 +421,17 @@
             KNOTS_TO_KMH: 1.852,
             ALTITUDE_ROUNDING: 100,
             TARGET_ZOOM: 13,
-            FLY_SPEED: 1.2
+            FLY_SPEED: 1.2,
+            LOCATIONS: {
+                JFK: { name: 'JFK - New York', lat: 40.6413, lon: -73.7781 },
+                SEA: { name: 'SEA - Seattle', lat: 47.4502, lon: -122.3088 },
+                GEG: { name: 'GEG - Spokane', lat: 47.6256, lon: -117.5369 },
+                ATL: { name: 'ATL - Atlanta', lat: 33.6407, lon: -84.4277 },
+                MIA: { name: 'MIA - Miami', lat: 25.7959, lon: -80.2870 },
+                DEN: { name: 'DEN - Denver', lat: 39.8561, lon: -104.6737 },
+                ORD: { name: 'ORD - Chicago', lat: 41.9742, lon: -87.9073 },
+                LAX: { name: 'LAX - Los Angeles', lat: 33.9416, lon: -118.4085 }
+            }
         };
 
         const AIRCRAFT_TYPES = {
@@ -551,7 +577,6 @@
     if (typeCode.startsWith("C1") || typeCode.startsWith("C2") || typeCode.startsWith("C5")) return "Cessna " + typeCode;
     return typeCode;
 }
-
         // DOM Cache
         const DOM = {
             startScreen: document.getElementById('startScreen'),
@@ -571,11 +596,9 @@
             tHdg: document.getElementById('tHdg'),
             tPhase: document.getElementById('tPhase'),
             settingsPanel: document.getElementById('settingsPanel'),
+            settingsOverlay: document.getElementById('settingsOverlay'),
             settingsBtn: document.getElementById('settingsBtn'),
-            scannerBtn: document.getElementById('scannerBtn'),
-            scannerMode: document.getElementById('scannerMode'),
-            scannerCompass: document.getElementById('scannerCompass'),
-            scannerHeading: document.getElementById('scannerHeading')
+            radarToggle: document.getElementById('radarToggle')
         };
 
         const state = {
@@ -588,20 +611,23 @@
             wxInterval: null,
             planeInterval: null,
             lastGeoUpdate: 0,
-            deviceHeading: 0,
-            scannerActive: false,
-            scannerAnimFrame: null
+            useGeo: true,
+            selectedAirport: null,
+            radarEnabled: true
         };
 
         function startApp() {
             DOM.startScreen.style.display = 'none';
             
-            speak("Initializing system checks. Please standby.");
+            speak("Please standby, system initializing.");
 
             initClock();
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition(
                     (pos) => {
+                        // Only update if using geo mode (not airport mode)
+                        if (!state.useGeo) return;
+                        
                         // Debounce geolocation updates
                         const now = Date.now();
                         if (now - state.lastGeoUpdate < CONFIG.GEO_UPDATE_THROTTLE) return;
@@ -724,9 +750,9 @@
                         'layout': { 'line-join': 'round', 'line-cap': 'round' },
                         'paint': { 
                             'line-color': '#56555e',
-                            'line-width': 4, 
+                            'line-width': 2, 
                             'line-opacity': 0.7, 
-                            'line-dasharray': [4, 6] 
+                            'line-dasharray': [2, 4] 
                         }
                     });
 
@@ -970,15 +996,88 @@
                 }).catch(e => console.log("WX Error"));
         }
 
-        function setRadius(r) {
+        function selectLocationSource(source) {
+            // Clear all selected states first
+            document.getElementById('optGeo').classList.remove('selected');
+            document.getElementById('optJFK').classList.remove('selected');
+            document.getElementById('optSEA').classList.remove('selected');
+            document.getElementById('optGEG').classList.remove('selected');
+            document.getElementById('optATL').classList.remove('selected');
+            document.getElementById('optMIA').classList.remove('selected');
+            document.getElementById('optDEN').classList.remove('selected');
+            document.getElementById('optORD').classList.remove('selected');
+            document.getElementById('optLAX').classList.remove('selected');
+            
+            // Set the selected one
+            document.getElementById('opt' + (source === 'geo' ? 'Geo' : source)).classList.add('selected');
+            
+            if (source === 'geo') {
+                state.useGeo = true;
+                state.selectedAirport = null;
+                DOM.geoLoc.textContent = 'USING GPS LOCATION';
+                // GPS watch position will update automatically
+            } else {
+                state.useGeo = false;
+                state.selectedAirport = source;
+                const airport = CONFIG.LOCATIONS[source];
+                state.lat = airport.lat;
+                state.lon = airport.lon;
+                DOM.geoLoc.textContent = airport.name;
+                
+                // Update map and fetch planes
+                if (state.map) {
+                    state.map.flyTo({ 
+                        center: [state.lon, state.lat], 
+                        zoom: getZoomForRadius(state.radius),
+                        speed: CONFIG.FLY_SPEED
+                    });
+                    if (state.userMarker) state.userMarker.setLngLat([state.lon, state.lat]);
+                }
+                fetchPlanes();
+            }
+        }
+
+        function selectRadius(r) {
             state.radius = r;
-            document.querySelectorAll('.radius-opt').forEach(el => el.classList.remove('selected'));
+            // Clear all radius selections
+            document.getElementById('optR3').classList.remove('selected');
+            document.getElementById('optR5').classList.remove('selected');
+            document.getElementById('optR10').classList.remove('selected');
+            document.getElementById('optR20').classList.remove('selected');
+            document.getElementById('optR25').classList.remove('selected');
+            
+            // Set the selected one
+            document.getElementById('optR' + r).classList.add('selected');
+            
             fetchPlanes();
             if(state.map) state.map.setZoom(getZoomForRadius(r));
-            toggleSettings();
         }
-        function toggleSettings() { DOM.settingsPanel.classList.toggle('open'); }
-        function getZoomForRadius(r) { if(r<=3) return 13; if(r<=5) return 12; if(r<=10) return 11; return 9; }
+        
+        function toggleRadar() {
+            state.radarEnabled = !state.radarEnabled;
+            DOM.radarToggle.classList.toggle('active');
+            
+            if (state.map && state.map.getLayer('radar-layer')) {
+                state.map.setLayoutProperty(
+                    'radar-layer',
+                    'visibility',
+                    state.radarEnabled ? 'visible' : 'none'
+                );
+            }
+        }
+        
+        function toggleSettings() { 
+            DOM.settingsPanel.classList.toggle('open'); 
+            DOM.settingsOverlay.classList.toggle('open');
+        }
+        
+        function getZoomForRadius(r) { 
+            if(r<=3) return 13; 
+            if(r<=5) return 12; 
+            if(r<=10) return 11;
+            if(r<=20) return 10;
+            return 9; 
+        }
         
         function getProjectedPoint(lat, lon, bear, distKm) {
             const R = 6371; 
@@ -997,135 +1096,6 @@
             const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
-
-        // === SKY SCANNER MODE ===
-        function openSkyScanner() {
-            if (!state.lat) {
-                alert("Waiting for GPS lock...");
-                return;
-            }
-            
-            state.scannerActive = true;
-            DOM.scannerMode.classList.add('active');
-            
-            // Request device orientation permission (iOS 13+)
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            startScanner();
-                        } else {
-                            alert("Device orientation permission required for Sky Scanner");
-                            closeSkyScanner();
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                startScanner();
-            }
-        }
-
-        function startScanner() {
-            window.addEventListener('deviceorientation', handleOrientation);
-            updateScannerView();
-        }
-
-        function handleOrientation(event) {
-            // Get compass heading (alpha is 0-360 where 0 is North)
-            let heading = event.webkitCompassHeading || event.alpha || 0;
-            
-            // Normalize to 0-360
-            if (heading < 0) heading += 360;
-            if (heading > 360) heading -= 360;
-            
-            state.deviceHeading = heading;
-            DOM.scannerHeading.textContent = Math.round(heading) + '°';
-        }
-
-        function updateScannerView() {
-            if (!state.scannerActive) return;
-            
-            // Clear existing plane markers
-            const existingMarkers = DOM.scannerCompass.querySelectorAll('.scanner-plane');
-            existingMarkers.forEach(m => m.remove());
-            
-            // Add plane markers for each aircraft
-            state.planesData.forEach((plane, hex) => {
-                const bearing = calculateBearing(state.lat, state.lon, plane.currentLat, plane.currentLon);
-                const elevation = calculateElevation(state.lat, state.lon, plane.currentLat, plane.currentLon, plane.alt_baro);
-                const distance = calcDist(state.lat, state.lon, plane.currentLat, plane.currentLon);
-                
-                // Only show planes within reasonable viewing distance
-                if (distance > 25) return;
-                
-                const planeMarker = document.createElement('div');
-                planeMarker.className = 'scanner-plane';
-                
-                // Position relative to device heading
-                const relativeBearing = (bearing - state.deviceHeading + 360) % 360;
-                const radius = 35; // percentage of container
-                const angle = (relativeBearing - 90) * Math.PI / 180; // -90 to rotate so 0° is up
-                
-                const x = 50 + radius * Math.cos(angle);
-                const y = 50 + radius * Math.sin(angle);
-                
-                planeMarker.style.left = x + '%';
-                planeMarker.style.top = y + '%';
-                planeMarker.style.transform = 'translate(-50%, -50%)';
-                
-                // Highlight if pointing at plane (within 15° cone)
-                const isPointingAt = Math.abs(relativeBearing) < 15 || Math.abs(relativeBearing - 360) < 15;
-                
-                planeMarker.innerHTML = `
-                    <div class="scanner-plane-icon" style="${isPointingAt ? 'background: rgba(168,194,86,0.8); transform: scale(1.3);' : ''}">
-                        ✈
-                    </div>
-                    <div class="scanner-plane-label">${plane.flight ? plane.flight.trim() : plane.hex}</div>
-                    <div class="scanner-elevation">${elevation > 0 ? '↑' : '↓'}${Math.abs(Math.round(elevation))}° • ${distance.toFixed(1)}mi</div>
-                `;
-                
-                planeMarker.onclick = () => {
-                    closeSkyScanner();
-                    selectTarget(hex);
-                };
-                
-                DOM.scannerCompass.appendChild(planeMarker);
-            });
-            
-            state.scannerAnimFrame = requestAnimationFrame(updateScannerView);
-        }
-
-        function calculateBearing(lat1, lon1, lat2, lon2) {
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
-            const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
-                      Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
-            let bearing = Math.atan2(y, x) * 180 / Math.PI;
-            return (bearing + 360) % 360;
-        }
-
-        function calculateElevation(lat1, lon1, lat2, lon2, altFeet) {
-            if (altFeet === 'ground') return 0;
-            
-            const distance = calcDist(lat1, lon1, lat2, lon2);
-            const distanceFeet = distance * 5280; // miles to feet
-            const altDiff = altFeet; // assuming observer at ground level
-            
-            const elevation = Math.atan2(altDiff, distanceFeet) * 180 / Math.PI;
-            return elevation;
-        }
-
-        function closeSkyScanner() {
-            state.scannerActive = false;
-            DOM.scannerMode.classList.remove('active');
-            window.removeEventListener('deviceorientation', handleOrientation);
-            if (state.scannerAnimFrame) {
-                cancelAnimationFrame(state.scannerAnimFrame);
-                state.scannerAnimFrame = null;
-            }
-        }
-
-        DOM.scannerBtn.onclick = openSkyScanner;
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
