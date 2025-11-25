@@ -5,15 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
-    <title>Plane Detector</title>
-    
+    <title>Plane Detector</title>  
     <script src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.css" rel="stylesheet" />
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    
     <style>
         :root {
             --theme-primary: #8e9186;
@@ -339,12 +336,19 @@
     color: var(--theme-primary) !important;
     animation: pulse 1.5s infinite;
 }
-    </style>
+.app-credit {
+    font-size: 10px;
+    color: var(--theme-text-secondary); 
+    margin-top: 8px;   
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    opacity: 0.6; 
+}
+</style>
 </head>
 <body>
-
     <div id="map"></div>
-
     <div class="hud-container">
         <div class="hud-tl">
             <div class="dash-time" id="clockTime">--:--</div>
@@ -358,9 +362,10 @@
             </div>
         </div>
         <div class="hud-bl">
-            <div class="geo-loc" id="geoLoc">WAITING FOR GEO</div>
-            <div class="plane-count" id="planeCountStatus">RADAR OFFLINE</div>
-        </div>
+    <div class="geo-loc" id="geoLoc">WAITING FOR GEO</div>
+    <div class="plane-count" id="planeCountStatus">RADAR OFFLINE</div>
+    <div class="app-credit">MADE BY MARK</div>
+</div>
         <div class="hud-br">
             <button class="settings-btn" id="settingsBtn">⋯</button>
         </div>
