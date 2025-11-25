@@ -145,12 +145,18 @@
             width: 400px;
             max-width: 90vw;
             height: 100vh;
+            height: 100dvh; 
+            
             background: var(--theme-bg);
             backdrop-filter: blur(20px);
             z-index: 300;
             transition: right 0.3s ease;
             border-left: 1px solid var(--theme-border);
+
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch; 
+            
+            padding-bottom: 80px; 
         }
         .settings-panel.open { right: 0; }
         
