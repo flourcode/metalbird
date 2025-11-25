@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
-    <title>SKY DASHBOARD GPU</title>
+    <title>Plane Detector</title>
     
     <script src="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@5.1.0/dist/maplibre-gl.css" rel="stylesheet" />
@@ -801,28 +801,24 @@ function startApp() {
     initClock();
     DOM.geoLoc.textContent = "ACQUIRING GEO...";
     DOM.geoLoc.classList.add('searching');
+    
     if (!state.map) {
         state.lat = 39.8;
         state.lon = -98.5;
         initMap();
         
-        // Disable map interactions until GPS locks
+        // Initial lock - we will unlock if GPS fails or succeeds
         if (state.map) {
             state.map.dragPan.disable();
             state.map.scrollZoom.disable();
-            state.map.touchZoomRotate.disable();
-            state.map.doubleClickZoom.disable();
         }
     }
+
     if (navigator.geolocation) {
-        // We assign the watcher to state.watchId to manage battery drain later
         state.watchId = navigator.geolocation.watchPosition(
             (pos) => {
                 DOM.geoLoc.classList.remove('searching');
-                state.lastKnownGeo = {
-                    lat: pos.coords.latitude,
-                    lon: pos.coords.longitude
-                };
+                state.lastKnownGeo = { lat: pos.coords.latitude, lon: pos.coords.longitude };
                 
                 if (state.useGeo) {
                     const isFirstLock = (state.lat === 39.8 && state.lon === -98.5);
@@ -830,14 +826,15 @@ function startApp() {
                     state.lon = pos.coords.longitude;
                     
                     DOM.geoLoc.textContent = `${state.lat.toFixed(CONFIG.LAT_LON_DECIMALS)} N / ${state.lon.toFixed(CONFIG.LAT_LON_DECIMALS)} W`;
+                    
                     if (state.map) {
+                        // ALWAYS enable interaction once we have data
+                        state.map.dragPan.enable();
+                        state.map.scrollZoom.enable();
+                        state.map.touchZoomRotate.enable();
+                        state.map.doubleClickZoom.enable();
+                        
                         if (isFirstLock) {
-                            // Enable map interactions on first GPS lock
-                            state.map.dragPan.enable();
-                            state.map.scrollZoom.enable();
-                            state.map.touchZoomRotate.enable();
-                            state.map.doubleClickZoom.enable();
-                            
                             state.map.flyTo({ 
                                 center: [state.lon, state.lat], 
                                 zoom: getZoomForRadius(state.radius),
@@ -847,7 +844,8 @@ function startApp() {
                         }
                         if(state.userMarker) state.userMarker.setLngLat([state.lon, state.lat]);
                     }
-                    if (!state.planeInterval) {
+                    // ... rest of your polling logic ...
+                     if (!state.planeInterval) {
                         updateWeather(true);
                         fetchPlanes();
                         state.planeInterval = setInterval(fetchPlanes, CONFIG.POLL_MS);
@@ -859,13 +857,25 @@ function startApp() {
                 }
             }, 
             (err) => {
-                DOM.geoLoc.textContent = "RETRYING";
+                // FALLBACK IF GPS FAILS
+                DOM.geoLoc.classList.remove('searching');
+                DOM.geoLoc.textContent = "GPS UNAVAILABLE";
+                if(state.map) {
+                    state.map.dragPan.enable();
+                    state.map.scrollZoom.enable();
+                }
+                alert("GPS Signal lost or denied. Please select a preset location from settings.");
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
     } else {
         DOM.geoLoc.classList.remove('searching');
         alert("GPS Not Supported");
+        // Ensure map is usable even without GPS
+        if(state.map) {
+            state.map.dragPan.enable();
+            state.map.scrollZoom.enable();
+        }
     }
 }
 		function initClock() {
@@ -1061,7 +1071,9 @@ async function fetchPlanes() {
         const now = Date.now();
         const activeHexes = new Set();
 
+        // CRITICAL FIX: Everything happens inside this check
         if (data.ac) {
+            // 1. UPDATE LOOP
             data.ac.forEach(p => {
                 if (!p.lat || !p.lon) return;
                 activeHexes.add(p.hex);
@@ -1081,7 +1093,6 @@ async function fetchPlanes() {
                     pData.startTime = now;
                     pData.alt_baro = p.alt_baro;
                     pData.gs = p.gs;
-                    // FIX: Keep old track if API returns null/undefined to prevent rotation glitches
                     pData.track = p.track !== undefined ? p.track : pData.track;
                     pData.flight = p.flight;
                     pData.t = p.t;
@@ -1103,13 +1114,18 @@ async function fetchPlanes() {
                     announceNewContact(pData, phase);
                 }
             });
-        }
-        DOM.planeCount.textContent = `${activeHexes.size} ACTIVE AIRCRAFT`;
-        for (let [hex, data] of state.planesData) {
-            if (!activeHexes.has(hex)) {
-                state.planesData.delete(hex);
-                setTimeout(() => state.announcedPlanes.delete(hex), 300000); 
-                if(state.selectedHex === hex) closeTarget();
+
+            // 2. UI UPDATE (Moved inside)
+            DOM.planeCount.textContent = `${activeHexes.size} ACTIVE AIRCRAFT`;
+
+            // 3. CLEANUP LOOP (Moved inside)
+            // This now only runs if we actually got data back from the server
+            for (let [hex, data] of state.planesData) {
+                if (!activeHexes.has(hex)) {
+                    state.planesData.delete(hex);
+                    setTimeout(() => state.announcedPlanes.delete(hex), 300000); 
+                    if(state.selectedHex === hex) closeTarget();
+                }
             }
         }
     } catch (e) { console.error("Plane error", e); }
@@ -1235,7 +1251,7 @@ function animatePlanes() {
         }
 
         function updateWeather(force = false) {
-            if (!state.lat) return;
+            if (!state.lat || !state.lon) return;
             
             // Don't update if we updated recently (unless forced)
             const now = Date.now();
@@ -1274,44 +1290,12 @@ function selectLocationSource(source) {
     
     // Set the selected one
     document.getElementById('opt' + (source === 'geo' ? 'Geo' : source)).classList.add('selected');
-    
-    if (source === 'geo') {
+if (source === 'geo') {
         state.useGeo = true;
         state.selectedAirport = null;
         
-        // RESTART GPS if it was stopped
-        if (!state.watchId && navigator.geolocation) {
-            DOM.geoLoc.classList.add('searching');
-            DOM.geoLoc.textContent = "ACQUIRING GEO...";
-            state.watchId = navigator.geolocation.watchPosition(
-                (pos) => {
-                    DOM.geoLoc.classList.remove('searching');
-                    state.lastKnownGeo = {
-                        lat: pos.coords.latitude,
-                        lon: pos.coords.longitude
-                    };
-                    if (state.useGeo) {
-                        state.lat = pos.coords.latitude;
-                        state.lon = pos.coords.longitude;
-                        DOM.geoLoc.textContent = `${state.lat.toFixed(CONFIG.LAT_LON_DECIMALS)} N / ${state.lon.toFixed(CONFIG.LAT_LON_DECIMALS)} W`;
-                        
-                        if (state.map) {
-                            state.map.flyTo({ 
-                                center: [state.lon, state.lat], 
-                                zoom: getZoomForRadius(state.radius),
-                                speed: CONFIG.FLY_SPEED
-                            });
-                            if (state.userMarker) state.userMarker.setLngLat([state.lon, state.lat]);
-                        }
-                        updateWeather(true);
-                        fetchPlanes();
-                    }
-                },
-                (err) => { DOM.geoLoc.textContent = "RETRYING"; },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-            );
-        } else if (state.lastKnownGeo) {
-            // If we already have a watch or last known position
+        // Use cached position IMMEDIATELY to eliminate lag
+        if (state.lastKnownGeo) {
             state.lat = state.lastKnownGeo.lat;
             state.lon = state.lastKnownGeo.lon;
             DOM.geoLoc.textContent = `${state.lat.toFixed(CONFIG.LAT_LON_DECIMALS)} N / ${state.lon.toFixed(CONFIG.LAT_LON_DECIMALS)} W`;
@@ -1327,7 +1311,35 @@ function selectLocationSource(source) {
             updateWeather(true);
             fetchPlanes();
         } else {
-            DOM.geoLoc.textContent = 'WAITING FOR GEO';
+            DOM.geoLoc.textContent = 'ACQUIRING GEO...';
+        }
+        
+        // RESTART GPS watch if it was stopped (will refine position in background)
+        if (!state.watchId && navigator.geolocation) {
+            DOM.geoLoc.classList.add('searching');
+            state.watchId = navigator.geolocation.watchPosition(
+                (pos) => {
+                    DOM.geoLoc.classList.remove('searching');
+                    state.lastKnownGeo = {
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude
+                    };
+                    if (state.useGeo) {
+                        state.lat = pos.coords.latitude;
+                        state.lon = pos.coords.longitude;
+                        DOM.geoLoc.textContent = `${state.lat.toFixed(CONFIG.LAT_LON_DECIMALS)} N / ${state.lon.toFixed(CONFIG.LAT_LON_DECIMALS)} W`;
+                        
+                        if (state.map) {
+                            state.map.setCenter([state.lon, state.lat]);
+                            if (state.userMarker) state.userMarker.setLngLat([state.lon, state.lat]);
+                        }
+                        updateWeather();
+                        fetchPlanes();
+                    }
+                },
+                (err) => { DOM.geoLoc.textContent = "RETRYING"; },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
         }
     } else {
         state.useGeo = false;
@@ -1339,7 +1351,6 @@ function selectLocationSource(source) {
             state.watchId = null;
             DOM.geoLoc.classList.remove('searching');
         }
-
         const airport = CONFIG.LOCATIONS[source];
         state.lat = airport.lat;
         state.lon = airport.lon;
@@ -1358,36 +1369,6 @@ function selectLocationSource(source) {
         fetchPlanes();
     }
 }
-        function selectTheme(theme) {
-            state.theme = theme;
-            
-            // Update UI selection
-            document.getElementById('optdark').classList.remove('selected');
-            document.getElementById('optlite').classList.remove('selected');
-            document.getElementById('opt' + (theme.charAt(0).toUpperCase() + theme.slice(1))).classList.add('selected');
-            
-            // Apply theme class to body
-            if (theme === 'lite') {
-                document.body.classList.add('lite-theme');
-            } else {
-                document.body.classList.remove('lite-theme');
-            }
-            
-            // Update map canvas filter
-            if (state.map) {
-                const canvas = document.querySelector('.maplibregl-canvas');
-                if (canvas) {
-                    canvas.style.filter = CONFIG.THEMES[theme].mapFilter;
-                }
-                
-                // Update plane colors
-                const currentTheme = CONFIG.THEMES[theme];
-                if (state.map.getLayer('flight-paths-layer')) {
-                    state.map.setPaintProperty('flight-paths-layer', 'line-color', currentTheme.planeColor);
-                }
-            }
-        }
-
         function selectRadius(r) {
             state.radius = r;
             // Clear all radius chip selections
@@ -1399,7 +1380,7 @@ function selectLocationSource(source) {
             // Set the selected one
             document.getElementById('chipR' + r)?.classList.add('selected');
             
-            const scaleFactor = Math.max(3 / r, 0.4); 
+            const scaleFactor = Math.max(3 / r, 0.6); 
 
             if (state.map && state.map.getLayer('planes-layer')) {
     state.map.setLayoutProperty('planes-layer', 'icon-size', [
